@@ -57,8 +57,17 @@ func (s *BalanceService) GetBalance(ctx context.Context, walletAddress string) (
 	for _, denomUnit := range chain.Asset.DenomUnits {
 		if denomUnit.Denom == chain.Asset.Display {
 			multiplier := big.NewFloat(0).SetFloat64(math.Pow(10, float64(denomUnit.Exponent)))
-			availableAmount := big.NewFloat(0).SetInt(bankResponse.Balances[0].Amount.BigInt())
-			stakedAmount := big.NewFloat(0).SetInt(stakingResponse.DelegationResponses[0].Balance.Amount.BigInt())
+
+			availableAmount := big.NewFloat(0)
+			if len(bankResponse.Balances) != 0 {
+				availableAmount.SetInt(bankResponse.Balances[0].Amount.BigInt())
+			}
+
+			stakedAmount := big.NewFloat(0)
+			if len(stakingResponse.DelegationResponses) != 0 {
+				stakedAmount.SetInt(stakingResponse.DelegationResponses[0].Balance.Amount.BigInt())
+			}
+
 			totalAmount := big.NewFloat(0).Add(availableAmount, stakedAmount)
 			response.AvailableAmount = availableAmount.Quo(availableAmount, multiplier).String()
 			response.StakedAmount = stakedAmount.Quo(stakedAmount, multiplier).String()
