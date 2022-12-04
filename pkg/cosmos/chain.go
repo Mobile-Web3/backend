@@ -1,0 +1,221 @@
+package cosmos
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"sync"
+
+	"github.com/cosmos/gogoproto/grpc"
+	lens "github.com/strangelove-ventures/lens/client"
+	registry "github.com/strangelove-ventures/lens/client/chain_registry"
+	"go.uber.org/zap"
+)
+
+var (
+	ErrInvalidGitURL    = errors.New("invalid git url")
+	ErrEmptyRegistryURL = errors.New("empty chain-registry url")
+	ErrChainNotFound    = errors.New("chain not found")
+)
+
+var excludingDirs = []string{".git", ".github", "_IBC", "_non-cosmos", "testnets", "thorchain"}
+
+type DenomUnit struct {
+	Denom    string `json:"denom"`
+	Exponent int    `json:"exponent"`
+}
+
+type Asset struct {
+	Description string      `json:"description"`
+	Base        string      `json:"base"`
+	Symbol      string      `json:"symbol"`
+	Display     string      `json:"display"`
+	DenomUnits  []DenomUnit `json:"denom_units"`
+}
+
+type Rpc struct {
+	Address  string `json:"address"`
+	Provider string `json:"provider"`
+}
+
+type Api struct {
+	Rpc []Rpc `json:"rpc"`
+}
+
+type Chain struct {
+	ID         string             `json:"chain_id"`
+	Name       string             `json:"chain_name"`
+	PrettyName string             `json:"pretty_name"`
+	Prefix     string             `json:"bech32_prefix"`
+	Slip44     int                `json:"slip44"`
+	Api        Api                `json:"apis"`
+	Info       registry.ChainInfo `json:"-"`
+	Asset      Asset              `json:"-"`
+}
+
+type ChainClient struct {
+	registryURL string
+	chains      map[string]Chain
+	mu          sync.RWMutex
+	zapLogger   *zap.Logger
+	homePath    string
+}
+
+func NewChainClient() (*ChainClient, error) {
+	url := os.Getenv("CHAIN_REGISTRY_URL")
+	if url == "" {
+		return nil, ErrEmptyRegistryURL
+	}
+
+	chainClient := &ChainClient{
+		registryURL: url,
+		mu:          sync.RWMutex{},
+		zapLogger:   zap.L(),
+		homePath:    os.Getenv("HOME"),
+	}
+
+	if err := chainClient.UploadChainInfo(); err != nil {
+		return nil, err
+	}
+
+	return chainClient, nil
+}
+
+func (cc *ChainClient) UploadChainInfo() error {
+	_, _, ok := strings.Cut(cc.registryURL, "http://")
+	if !ok {
+		_, _, ok = strings.Cut(cc.registryURL, "https://")
+		if !ok {
+			return ErrInvalidGitURL
+		}
+	}
+
+	before, _, ok := strings.Cut(cc.registryURL, ".git")
+	if !ok {
+		return ErrInvalidGitURL
+	}
+
+	urlItems := strings.Split(before, "/")
+	dirName := urlItems[len(urlItems)-1]
+	if dirName == "" {
+		return ErrInvalidGitURL
+	}
+
+	dirs, err := os.ReadDir(dirName)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err != nil {
+		cmd := exec.Command("git", "clone", cc.registryURL)
+		if cmdErr := cmd.Run(); cmdErr != nil {
+			return cmdErr
+		}
+		var readErr error
+		dirs, readErr = os.ReadDir(dirName)
+		if readErr != nil {
+			return readErr
+		}
+	}
+
+	chains := make(map[string]Chain)
+	for _, dir := range dirs {
+		isNotSystemDir := true
+		for _, excludingDirName := range excludingDirs {
+			if dir.Name() == excludingDirName {
+				isNotSystemDir = false
+				break
+			}
+		}
+		if dir.Type() == os.ModeDir && isNotSystemDir {
+			chainFileName := fmt.Sprintf("%s/%s/chain.json", dirName, dir.Name())
+			assetFileName := fmt.Sprintf("%s/%s/assetlist.json", dirName, dir.Name())
+			if readFileErr := cc.readChainFile(chainFileName, assetFileName, chains); readFileErr != nil {
+				return readFileErr
+			}
+		}
+	}
+
+	cc.mu.Lock()
+	cc.chains = chains
+	cc.mu.Unlock()
+	return nil
+}
+
+func (cc *ChainClient) GetChainByWallet(walletAddress string) (Chain, error) {
+	var chain Chain
+	cc.mu.RLock()
+	for key := range cc.chains {
+		before, _, ok := strings.Cut(walletAddress, key)
+		if ok && before == "" {
+			chain = cc.chains[key]
+			break
+		}
+	}
+	cc.mu.RUnlock()
+
+	if chain.ID == "" {
+		return chain, ErrChainNotFound
+	}
+
+	return chain, nil
+}
+
+func (cc *ChainClient) GetRPCConnection(ctx context.Context, chain Chain) (grpc.ClientConn, error) {
+	rpc, err := chain.Info.GetRandomRPCEndpoint(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	chainConfig := lens.ChainClientConfig{
+		RPCAddr:        rpc,
+		KeyringBackend: "test",
+		AccountPrefix:  chain.Prefix,
+	}
+
+	chainClient, err := lens.NewChainClient(cc.zapLogger, &chainConfig, cc.homePath, os.Stdin, os.Stdout)
+	if err != nil {
+		return nil, err
+	}
+
+	return chainClient, nil
+}
+
+type assets struct {
+	Assets []Asset `json:"assets"`
+}
+
+func (cc *ChainClient) readChainFile(chainFileName string, assetFileName string, chains map[string]Chain) error {
+	chainFile, err := os.ReadFile(chainFileName)
+	if err != nil {
+		return err
+	}
+
+	chain := Chain{}
+	if err = json.Unmarshal(chainFile, &chain); err != nil {
+		return err
+	}
+
+	chainInfo := registry.NewChainInfo(cc.zapLogger)
+	if err = json.Unmarshal(chainFile, &chainInfo); err != nil {
+		return err
+	}
+
+	assetFile, err := os.ReadFile(assetFileName)
+	if err != nil {
+		return err
+	}
+
+	asset := assets{}
+	if err = json.Unmarshal(assetFile, &asset); err != nil {
+		return err
+	}
+
+	chain.Info = chainInfo
+	chain.Asset = asset.Assets[0]
+	chains[chain.Prefix] = chain
+	return nil
+}
