@@ -1,3 +1,4 @@
 **.idea
 chain-registry
 go.sum
+.env

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -18,7 +17,8 @@ import (
 
 var (
 	ErrInvalidGitURL    = errors.New("invalid git url")
-	ErrEmptyRegistryURL = errors.New("empty chain-registry url")
+	ErrEmptyRegistryURL = errors.New("empty CHAIN_REGISTRY_URL")
+	ErrEmptyRegistryDir = errors.New("empty REGISTRY_DIR")
 	ErrChainNotFound    = errors.New("chain not found")
 )
 
@@ -59,6 +59,7 @@ type Chain struct {
 
 type ChainClient struct {
 	registryURL string
+	registryDir string
 	chains      map[string]Chain
 	mu          sync.RWMutex
 	zapLogger   *zap.Logger
@@ -71,8 +72,33 @@ func NewChainClient() (*ChainClient, error) {
 		return nil, ErrEmptyRegistryURL
 	}
 
+	registryDir := os.Getenv("REGISTRY_DIR")
+	if registryDir == "" {
+		return nil, ErrEmptyRegistryDir
+	}
+
+	_, _, ok := strings.Cut(url, "http://")
+	if !ok {
+		_, _, ok = strings.Cut(url, "https://")
+		if !ok {
+			return nil, ErrInvalidGitURL
+		}
+	}
+
+	before, _, ok := strings.Cut(url, ".git")
+	if !ok {
+		return nil, ErrInvalidGitURL
+	}
+
+	urlItems := strings.Split(before, "/")
+	dirName := urlItems[len(urlItems)-1]
+	if dirName == "" {
+		return nil, ErrInvalidGitURL
+	}
+
 	chainClient := &ChainClient{
 		registryURL: url,
+		registryDir: registryDir + "/" + dirName,
 		mu:          sync.RWMutex{},
 		zapLogger:   zap.L(),
 		homePath:    os.Getenv("HOME"),
@@ -86,39 +112,9 @@ func NewChainClient() (*ChainClient, error) {
 }
 
 func (cc *ChainClient) UploadChainInfo() error {
-	_, _, ok := strings.Cut(cc.registryURL, "http://")
-	if !ok {
-		_, _, ok = strings.Cut(cc.registryURL, "https://")
-		if !ok {
-			return ErrInvalidGitURL
-		}
-	}
-
-	before, _, ok := strings.Cut(cc.registryURL, ".git")
-	if !ok {
-		return ErrInvalidGitURL
-	}
-
-	urlItems := strings.Split(before, "/")
-	dirName := urlItems[len(urlItems)-1]
-	if dirName == "" {
-		return ErrInvalidGitURL
-	}
-
-	dirs, err := os.ReadDir(dirName)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
+	dirs, err := os.ReadDir(cc.registryDir)
 	if err != nil {
-		cmd := exec.Command("git", "clone", cc.registryURL)
-		if cmdErr := cmd.Run(); cmdErr != nil {
-			return cmdErr
-		}
-		var readErr error
-		dirs, readErr = os.ReadDir(dirName)
-		if readErr != nil {
-			return readErr
-		}
+		return err
 	}
 
 	chains := make(map[string]Chain)
@@ -131,8 +127,8 @@ func (cc *ChainClient) UploadChainInfo() error {
 			}
 		}
 		if dir.Type() == os.ModeDir && isNotSystemDir {
-			chainFileName := fmt.Sprintf("%s/%s/chain.json", dirName, dir.Name())
-			assetFileName := fmt.Sprintf("%s/%s/assetlist.json", dirName, dir.Name())
+			chainFileName := fmt.Sprintf("%s/%s/chain.json", cc.registryDir, dir.Name())
+			assetFileName := fmt.Sprintf("%s/%s/assetlist.json", cc.registryDir, dir.Name())
 			if readFileErr := cc.readChainFile(chainFileName, assetFileName, chains); readFileErr != nil {
 				return readFileErr
 			}

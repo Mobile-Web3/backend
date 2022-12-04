@@ -51,7 +51,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		logger.Fatal("port not set")
+		logger.Fatal("empty PORT")
 	}
 	server := http.Server{
 		Addr:    ":" + port,
