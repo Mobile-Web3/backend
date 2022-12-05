@@ -3,6 +3,8 @@ version: '3.4'
 services:
   gateway:
     image: gateway
+    ports:
+      - "8090:8090"
     volumes:
       - /home/mobileweb3/environment/gateway/.env:/app/.env
       - /home/mobileweb3/chain-registry:/app/chain-registry
