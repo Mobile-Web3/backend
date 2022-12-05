@@ -1,6 +1,6 @@
 basePath: /api
 definitions:
-  controller.apiResponse:
+  api.Response:
     properties:
       error:
         type: string
@@ -8,18 +8,18 @@ definitions:
         type: boolean
       result: {}
     type: object
-  controller.checkBalanceRequest:
-    properties:
-      walletAddress:
-        type: string
-    type: object
-  service.BalanceResponse:
+  balance.CheckResponse:
     properties:
       availableAmount:
         type: string
       stakedAmount:
         type: string
       totalAmount:
+        type: string
+    type: object
+  balance.checkRequest:
+    properties:
+      walletAddress:
         type: string
     type: object
 info:
@@ -38,7 +38,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/controller.checkBalanceRequest'
+          $ref: '#/definitions/balance.checkRequest'
       produces:
       - application/json
       responses:
@@ -46,10 +46,10 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/controller.apiResponse'
+            - $ref: '#/definitions/api.Response'
             - properties:
                 result:
-                  $ref: '#/definitions/service.BalanceResponse'
+                  $ref: '#/definitions/balance.CheckResponse'
               type: object
       summary: Получить инфу о балансе
       tags:

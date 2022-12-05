@@ -1,17 +1,19 @@
 # build
-FROM golang:1.19 as build
+FROM golang:1.19-alpine3.16 as build
+RUN apk add --no-cache gcc musl-dev
 
-ENV GOPATH="" CGO_ENABLED=0
+WORKDIR /app
 COPY . .
+
 RUN go mod download
 RUN go mod tidy
 RUN go build -o ./gateway cmd/gateway/main.go
 
 # app
-FROM alpine:3.12
+FROM alpine:3.16
 
-COPY --from=build ./gateway /app/
-EXPOSE 8080
+COPY --from=build app/gateway /app/
+EXPOSE 8090
 WORKDIR /app/
 
 CMD ["./gateway"]

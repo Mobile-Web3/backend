@@ -27,7 +27,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controller.checkBalanceRequest"
+                            "$ref": "#/definitions/balance.checkRequest"
                         }
                     }
                 ],
@@ -37,13 +37,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/controller.apiResponse"
+                                    "$ref": "#/definitions/api.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/service.BalanceResponse"
+                                            "$ref": "#/definitions/balance.CheckResponse"
                                         }
                                     }
                                 }
@@ -55,7 +55,7 @@
         }
     },
     "definitions": {
-        "controller.apiResponse": {
+        "api.Response": {
             "type": "object",
             "properties": {
                 "error": {
@@ -67,15 +67,7 @@
                 "result": {}
             }
         },
-        "controller.checkBalanceRequest": {
-            "type": "object",
-            "properties": {
-                "walletAddress": {
-                    "type": "string"
-                }
-            }
-        },
-        "service.BalanceResponse": {
+        "balance.CheckResponse": {
             "type": "object",
             "properties": {
                 "availableAmount": {
@@ -85,6 +77,14 @@
                     "type": "string"
                 },
                 "totalAmount": {
+                    "type": "string"
+                }
+            }
+        },
+        "balance.checkRequest": {
+            "type": "object",
+            "properties": {
+                "walletAddress": {
                     "type": "string"
                 }
             }

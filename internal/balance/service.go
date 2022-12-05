@@ -1,4 +1,4 @@
-package service
+package balance
 
 import (
 	"context"
@@ -10,31 +10,31 @@ import (
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-type BalanceService struct {
+type Service struct {
 	chainClient *cosmos.ChainClient
 }
 
-func NewBalanceService(chainClient *cosmos.ChainClient) *BalanceService {
-	return &BalanceService{
+func NewService(chainClient *cosmos.ChainClient) *Service {
+	return &Service{
 		chainClient: chainClient,
 	}
 }
 
-type BalanceResponse struct {
+type CheckResponse struct {
 	TotalAmount     string `json:"totalAmount"`
 	AvailableAmount string `json:"availableAmount"`
 	StakedAmount    string `json:"stakedAmount"`
 }
 
-func (s *BalanceService) GetBalance(ctx context.Context, walletAddress string) (BalanceResponse, error) {
+func (s *Service) GetBalance(ctx context.Context, walletAddress string) (CheckResponse, error) {
 	chain, err := s.chainClient.GetChainByWallet(walletAddress)
 	if err != nil {
-		return BalanceResponse{}, err
+		return CheckResponse{}, err
 	}
 
 	rpcConnection, err := s.chainClient.GetRPCConnection(ctx, chain)
 	if err != nil {
-		return BalanceResponse{}, err
+		return CheckResponse{}, err
 	}
 
 	bankClient := bank.NewQueryClient(rpcConnection)
@@ -42,7 +42,7 @@ func (s *BalanceService) GetBalance(ctx context.Context, walletAddress string) (
 		Address: walletAddress,
 	})
 	if err != nil {
-		return BalanceResponse{}, err
+		return CheckResponse{}, err
 	}
 
 	stackingClient := staking.NewQueryClient(rpcConnection)
@@ -50,10 +50,10 @@ func (s *BalanceService) GetBalance(ctx context.Context, walletAddress string) (
 		DelegatorAddr: walletAddress,
 	})
 	if err != nil {
-		return BalanceResponse{}, err
+		return CheckResponse{}, err
 	}
 
-	response := BalanceResponse{}
+	response := CheckResponse{}
 	for _, denomUnit := range chain.Asset.DenomUnits {
 		if denomUnit.Denom == chain.Asset.Display {
 			multiplier := big.NewFloat(0).SetFloat64(math.Pow(10, float64(denomUnit.Exponent)))

@@ -1,20 +1,20 @@
-package controller
+package api
 
-type apiResponse struct {
+type Response struct {
 	IsSuccess bool        `json:"isSuccess"`
 	Error     string      `json:"error"`
 	Result    interface{} `json:"result"`
 }
 
-func createSuccessResponse(result interface{}) apiResponse {
-	return apiResponse{
+func NewSuccessResponse(result interface{}) Response {
+	return Response{
 		IsSuccess: true,
 		Result:    result,
 	}
 }
 
-func createErrorResponse(error string) apiResponse {
-	return apiResponse{
+func NewErrorResponse(error string) Response {
+	return Response{
 		IsSuccess: false,
 		Error:     error,
 	}

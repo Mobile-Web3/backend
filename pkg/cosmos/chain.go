@@ -85,20 +85,14 @@ func NewChainClient() (*ChainClient, error) {
 		}
 	}
 
-	before, _, ok := strings.Cut(url, ".git")
+	_, _, ok = strings.Cut(url, ".git")
 	if !ok {
-		return nil, ErrInvalidGitURL
-	}
-
-	urlItems := strings.Split(before, "/")
-	dirName := urlItems[len(urlItems)-1]
-	if dirName == "" {
 		return nil, ErrInvalidGitURL
 	}
 
 	chainClient := &ChainClient{
 		registryURL: url,
-		registryDir: registryDir + "/" + dirName,
+		registryDir: registryDir,
 		mu:          sync.RWMutex{},
 		zapLogger:   zap.L(),
 		homePath:    os.Getenv("HOME"),

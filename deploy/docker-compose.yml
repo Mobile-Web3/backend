@@ -4,8 +4,8 @@ services:
   gateway:
     image: gateway
     volumes:
-      - /home/mobileweb3/environment/gateway/.env:.env
-      - /home/mobileweb3/chain-registry:chain-registry
+      - /home/mobileweb3/environment/gateway/.env:/app/.env
+      - /home/mobileweb3/chain-registry:/app/chain-registry
     build:
       context: ..
       dockerfile: build/Dockerfile-gateway

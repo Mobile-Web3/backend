@@ -10,8 +10,7 @@ import (
 	"syscall"
 
 	_ "github.com/Mobile-Web3/backend/cmd/gateway/docs"
-	"github.com/Mobile-Web3/backend/internal/controller"
-	"github.com/Mobile-Web3/backend/internal/service"
+	"github.com/Mobile-Web3/backend/internal/balance"
 	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/env"
 	"github.com/gin-gonic/gin"
@@ -35,14 +34,14 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	balanceService := service.NewBalanceService(chainClient)
-	balanceController := controller.NewBalanceController(balanceService)
+	balanceService := balance.NewService(chainClient)
+	balanceController := balance.NewController(balanceService)
 
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
 	swaggerHandler := gin.WrapH(httpSwagger.Handler(httpSwagger.URL("doc.json")))
-	router.GET("/swagger/*any", swaggerHandler)
+	router.GET("/api/swagger/*any", swaggerHandler)
 
 	api := router.Group("/api")
 	{
