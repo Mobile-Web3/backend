@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	_ "github.com/Mobile-Web3/backend/cmd/gateway/docs"
+	_ "github.com/Mobile-Web3/backend/docs/api"
 	"github.com/Mobile-Web3/backend/internal/balance"
+	"github.com/Mobile-Web3/backend/internal/transaction"
 	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/env"
+	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/gin-gonic/gin"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -23,19 +24,21 @@ import (
 // @BasePath  /api
 func main() {
 	ctx := context.Background()
-	logger := log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.NewStandard()
 
 	if err := env.Parse(); err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
+		return
 	}
 
 	chainClient, err := cosmos.NewChainClient()
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
+		return
 	}
 
-	balanceService := balance.NewService(chainClient)
-	balanceController := balance.NewController(balanceService)
+	balanceController := balance.NewController(logger, balance.NewService(chainClient))
+	transactionController := transaction.NewController(logger, transaction.NewService(chainClient))
 
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -46,11 +49,13 @@ func main() {
 	api := router.Group("/api")
 	{
 		api.POST("/balance/check", balanceController.GetBalance)
+		api.POST("/transaction/send", transactionController.Send)
 	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		logger.Fatal("empty PORT")
+		logger.Error("empty PORT")
+		return
 	}
 	server := http.Server{
 		Addr:    ":" + port,
@@ -63,11 +68,11 @@ func main() {
 		<-quit
 
 		if err = server.Shutdown(ctx); err != nil {
-			logger.Fatal(err)
+			logger.Error(err)
 		}
 	}()
 
 	if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Fatal()
+		logger.Error(err)
 	}
 }

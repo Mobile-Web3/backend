@@ -46,7 +46,7 @@ func (s *Service) GetBalance(ctx context.Context, walletAddress string) (CheckRe
 	}
 
 	stackingClient := staking.NewQueryClient(rpcConnection)
-	stakingResponse, err := stackingClient.DelegatorDelegations(context.Background(), &staking.QueryDelegatorDelegationsRequest{
+	stakingResponse, err := stackingClient.DelegatorDelegations(ctx, &staking.QueryDelegatorDelegationsRequest{
 		DelegatorAddr: walletAddress,
 	})
 	if err != nil {

@@ -2,15 +2,15 @@ version: '3.4'
 
 services:
   gateway:
-    image: gateway
+    image: api
     ports:
       - "8090:8090"
     volumes:
-      - /home/mobileweb3/environment/gateway/.env:/app/.env
+      - /home/mobileweb3/environment/api/.env:/app/.env
       - /home/mobileweb3/chain-registry:/app/chain-registry
     build:
       context: ..
-      dockerfile: build/Dockerfile-gateway
+      dockerfile: ../build/Dockerfile-api
     deploy:
       replicas: 1
       restart_policy:

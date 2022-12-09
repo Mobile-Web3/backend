@@ -1,25 +1,16 @@
 package cosmos
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
-	"sync"
 
-	"github.com/cosmos/gogoproto/grpc"
-	lens "github.com/strangelove-ventures/lens/client"
 	registry "github.com/strangelove-ventures/lens/client/chain_registry"
-	"go.uber.org/zap"
 )
 
 var (
-	ErrInvalidGitURL    = errors.New("invalid git url")
-	ErrEmptyRegistryURL = errors.New("empty CHAIN_REGISTRY_URL")
-	ErrEmptyRegistryDir = errors.New("empty REGISTRY_DIR")
-	ErrChainNotFound    = errors.New("chain not found")
+	ErrBaseDenomNotFound = errors.New("base denom not found")
+	ErrInvalidAmount     = errors.New("invalid amount")
 )
 
 var excludingDirs = []string{".git", ".github", "_IBC", "_non-cosmos", "testnets", "thorchain"}
@@ -46,166 +37,96 @@ type Api struct {
 	Rpc []Rpc `json:"rpc"`
 }
 
+type FeeToken struct {
+	Denom           string  `json:"denom"`
+	MinGasPrice     float64 `json:"fixed_min_gas_price"`
+	LowGasPrice     float64 `json:"low_gas_price"`
+	AverageGasPrice float64 `json:"average_gas_price"`
+	HighGasPrice    float64 `json:"high_gas_price"`
+}
+
+type Fee struct {
+	FeeTokens []FeeToken `json:"fee_tokens"`
+}
+
 type Chain struct {
 	ID         string             `json:"chain_id"`
 	Name       string             `json:"chain_name"`
 	PrettyName string             `json:"pretty_name"`
 	Prefix     string             `json:"bech32_prefix"`
-	Slip44     int                `json:"slip44"`
+	Slip44     uint32             `json:"slip44"`
+	Fees       Fee                `json:"fees"`
 	Api        Api                `json:"apis"`
 	Info       registry.ChainInfo `json:"-"`
 	Asset      Asset              `json:"-"`
 }
 
-type ChainClient struct {
-	registryURL string
-	registryDir string
-	chains      map[string]Chain
-	mu          sync.RWMutex
-	zapLogger   *zap.Logger
-	homePath    string
-}
-
-func NewChainClient() (*ChainClient, error) {
-	url := os.Getenv("CHAIN_REGISTRY_URL")
-	if url == "" {
-		return nil, ErrEmptyRegistryURL
-	}
-
-	registryDir := os.Getenv("REGISTRY_DIR")
-	if registryDir == "" {
-		return nil, ErrEmptyRegistryDir
-	}
-
-	_, _, ok := strings.Cut(url, "http://")
-	if !ok {
-		_, _, ok = strings.Cut(url, "https://")
-		if !ok {
-			return nil, ErrInvalidGitURL
-		}
-	}
-
-	_, _, ok = strings.Cut(url, ".git")
-	if !ok {
-		return nil, ErrInvalidGitURL
-	}
-
-	chainClient := &ChainClient{
-		registryURL: url,
-		registryDir: registryDir,
-		mu:          sync.RWMutex{},
-		zapLogger:   zap.L(),
-		homePath:    os.Getenv("HOME"),
-	}
-
-	if err := chainClient.UploadChainInfo(); err != nil {
-		return nil, err
-	}
-
-	return chainClient, nil
-}
-
-func (cc *ChainClient) UploadChainInfo() error {
-	dirs, err := os.ReadDir(cc.registryDir)
-	if err != nil {
-		return err
-	}
-
-	chains := make(map[string]Chain)
-	for _, dir := range dirs {
-		isNotSystemDir := true
-		for _, excludingDirName := range excludingDirs {
-			if dir.Name() == excludingDirName {
-				isNotSystemDir = false
-				break
+func (c *Chain) GetLowGasPrice() string {
+	for _, feeToken := range c.Fees.FeeTokens {
+		if feeToken.Denom == c.Asset.Base {
+			if feeToken.LowGasPrice == 0 {
+				return "0.1" + feeToken.Denom
 			}
+			return fmt.Sprintf("%f%s", feeToken.LowGasPrice, feeToken.Denom)
 		}
-		if dir.Type() == os.ModeDir && isNotSystemDir {
-			chainFileName := fmt.Sprintf("%s/%s/chain.json", cc.registryDir, dir.Name())
-			assetFileName := fmt.Sprintf("%s/%s/assetlist.json", cc.registryDir, dir.Name())
-			if readFileErr := cc.readChainFile(chainFileName, assetFileName, chains); readFileErr != nil {
-				return readFileErr
+	}
+	return "0.1" + c.Asset.Base
+}
+
+func (c *Chain) GetBaseDenom() (denom string, exponent int, err error) {
+	for _, unit := range c.Asset.DenomUnits {
+		if unit.Denom == c.Asset.Base {
+			denom = unit.Denom
+			for _, displayUnit := range c.Asset.DenomUnits {
+				if displayUnit.Denom == c.Asset.Display {
+					exponent = displayUnit.Exponent
+					break
+				}
 			}
+			return
 		}
 	}
 
-	cc.mu.Lock()
-	cc.chains = chains
-	cc.mu.Unlock()
-	return nil
+	err = ErrBaseDenomNotFound
+	return
 }
 
-func (cc *ChainClient) GetChainByWallet(walletAddress string) (Chain, error) {
-	var chain Chain
-	cc.mu.RLock()
-	for key := range cc.chains {
-		before, _, ok := strings.Cut(walletAddress, key)
-		if ok && before == "" {
-			chain = cc.chains[key]
-			break
+func (c *Chain) FromDisplayToBase(amount string) (string, error) {
+	denom, exponent, err := c.GetBaseDenom()
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	if !strings.Contains(amount, ".") {
+		sb.WriteString(amount)
+		for i := 0; i < exponent; i++ {
+			sb.WriteString("0")
+		}
+		sb.WriteString(denom)
+		return sb.String(), nil
+	}
+
+	amountValues := strings.Split(amount, ".")
+
+	if len(amountValues) > 2 {
+		return "", ErrInvalidAmount
+	}
+
+	if len(amountValues[0]) > 0 && rune(amountValues[0][0]) != '0' {
+		for _, symbol := range amountValues[0] {
+			sb.WriteRune(symbol)
 		}
 	}
-	cc.mu.RUnlock()
 
-	if chain.ID == "" {
-		return chain, ErrChainNotFound
+	for i := 0; i < exponent; i++ {
+		if len(amountValues[1]) < i+1 {
+			sb.WriteString("0")
+			continue
+		}
+		sb.WriteRune(rune(amountValues[1][i]))
 	}
 
-	return chain, nil
-}
-
-func (cc *ChainClient) GetRPCConnection(ctx context.Context, chain Chain) (grpc.ClientConn, error) {
-	rpc, err := chain.Info.GetRandomRPCEndpoint(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	chainConfig := lens.ChainClientConfig{
-		RPCAddr:        rpc,
-		KeyringBackend: "test",
-		AccountPrefix:  chain.Prefix,
-	}
-
-	chainClient, err := lens.NewChainClient(cc.zapLogger, &chainConfig, cc.homePath, os.Stdin, os.Stdout)
-	if err != nil {
-		return nil, err
-	}
-
-	return chainClient, nil
-}
-
-type assets struct {
-	Assets []Asset `json:"assets"`
-}
-
-func (cc *ChainClient) readChainFile(chainFileName string, assetFileName string, chains map[string]Chain) error {
-	chainFile, err := os.ReadFile(chainFileName)
-	if err != nil {
-		return err
-	}
-
-	chain := Chain{}
-	if err = json.Unmarshal(chainFile, &chain); err != nil {
-		return err
-	}
-
-	chainInfo := registry.NewChainInfo(cc.zapLogger)
-	if err = json.Unmarshal(chainFile, &chainInfo); err != nil {
-		return err
-	}
-
-	assetFile, err := os.ReadFile(assetFileName)
-	if err != nil {
-		return err
-	}
-
-	asset := assets{}
-	if err = json.Unmarshal(assetFile, &asset); err != nil {
-		return err
-	}
-
-	chain.Info = chainInfo
-	chain.Asset = asset.Assets[0]
-	chains[chain.Prefix] = chain
-	return nil
+	sb.WriteString(denom)
+	return sb.String(), nil
 }

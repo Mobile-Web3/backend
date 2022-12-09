@@ -1,0 +1,181 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API",
+        "title": "Swagger UI",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/api",
+    "paths": {
+        "/balance/check": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "balance"
+                ],
+                "summary": "Получить инфу о балансе",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/balance.checkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/balance.CheckResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/transaction/send": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transaction"
+                ],
+                "summary": "Отправить транзакцию",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/transaction.SendInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/transaction.SendResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.Response": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "isSuccess": {
+                    "type": "boolean"
+                },
+                "result": {}
+            }
+        },
+        "balance.CheckResponse": {
+            "type": "object",
+            "properties": {
+                "availableAmount": {
+                    "type": "string"
+                },
+                "stakedAmount": {
+                    "type": "string"
+                },
+                "totalAmount": {
+                    "type": "string"
+                }
+            }
+        },
+        "balance.checkRequest": {
+            "type": "object",
+            "properties": {
+                "walletAddress": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SendInput": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "mnemonic": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SendResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string"
+                },
+                "gasUsed": {
+                    "type": "integer"
+                },
+                "gasWanted": {
+                    "type": "integer"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "rawLog": {
+                    "type": "string"
+                },
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

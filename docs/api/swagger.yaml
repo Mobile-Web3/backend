@@ -22,6 +22,34 @@ definitions:
       walletAddress:
         type: string
     type: object
+  transaction.SendInput:
+    properties:
+      amount:
+        type: string
+      from:
+        type: string
+      memo:
+        type: string
+      mnemonic:
+        type: string
+      to:
+        type: string
+    type: object
+  transaction.SendResponse:
+    properties:
+      data:
+        type: string
+      gasUsed:
+        type: integer
+      gasWanted:
+        type: integer
+      height:
+        type: integer
+      rawLog:
+        type: string
+      txHash:
+        type: string
+    type: object
 info:
   contact: {}
   description: API
@@ -54,4 +82,30 @@ paths:
       summary: Получить инфу о балансе
       tags:
       - balance
+  /transaction/send:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/transaction.SendInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/transaction.SendResponse'
+              type: object
+      summary: Отправить транзакцию
+      tags:
+      - transaction
 swagger: "2.0"

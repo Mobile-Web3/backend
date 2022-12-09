@@ -1,5 +1,5 @@
 lint:
 	go vet ./...
 
-swag gateway:
-	swag init -g cmd/gateway/main.go -o cmd/gateway/docs --exclude pkg/cosmos pkg/env
+swag api:
+	swag init -g cmd/api/main.go -o docs/api --exclude pkg/cosmos pkg/env
