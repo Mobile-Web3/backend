@@ -10,7 +10,7 @@ services:
       - /home/mobileweb3/chain-registry:/app/chain-registry
     build:
       context: ..
-      dockerfile: ../build/Dockerfile-api
+      dockerfile: build/Dockerfile-api
     deploy:
       replicas: 1
       restart_policy:
