@@ -40,9 +40,9 @@ func main() {
 	balanceController := balance.NewController(logger, balance.NewService(chainClient))
 	transactionController := transaction.NewController(logger, transaction.NewService(chainClient))
 
+	gin.SetMode("release")
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(gin.Logger())
 	swaggerHandler := gin.WrapH(httpSwagger.Handler(httpSwagger.URL("doc.json")))
 	router.GET("/api/swagger/*any", swaggerHandler)
 

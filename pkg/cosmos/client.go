@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	lens "github.com/strangelove-ventures/lens/client"
 	registry "github.com/strangelove-ventures/lens/client/chain_registry"
@@ -24,7 +25,7 @@ var (
 type ChainClient struct {
 	registryURL string
 	registryDir string
-	chains      map[string]Chain
+	chains      map[string]*Chain
 	mu          sync.RWMutex
 	zapLogger   *zap.Logger
 	homePath    string
@@ -75,7 +76,17 @@ func (cc *ChainClient) UploadChainInfo() error {
 		return err
 	}
 
-	chains := make(map[string]Chain)
+	chainRPCLifetimeENV := os.Getenv("CHAIN_RPC_LIFETIME")
+	if chainRPCLifetimeENV == "" {
+		chainRPCLifetimeENV = "10m"
+	}
+
+	rpcLifetime, err := time.ParseDuration(chainRPCLifetimeENV)
+	if err != nil {
+		return err
+	}
+
+	chains := make(map[string]*Chain)
 	for _, dir := range dirs {
 		isNotSystemDir := true
 		for _, excludingDirName := range excludingDirs {
@@ -87,7 +98,7 @@ func (cc *ChainClient) UploadChainInfo() error {
 		if dir.Type() == os.ModeDir && isNotSystemDir {
 			chainFileName := fmt.Sprintf("%s/%s/chain.json", cc.registryDir, dir.Name())
 			assetFileName := fmt.Sprintf("%s/%s/assetlist.json", cc.registryDir, dir.Name())
-			if readFileErr := cc.readChainFile(chainFileName, assetFileName, chains); readFileErr != nil {
+			if readFileErr := cc.readChainFile(chainFileName, assetFileName, rpcLifetime, chains); readFileErr != nil {
 				return readFileErr
 			}
 		}
@@ -99,9 +110,11 @@ func (cc *ChainClient) UploadChainInfo() error {
 	return nil
 }
 
-func (cc *ChainClient) GetChainByWallet(walletAddress string) (Chain, error) {
-	var chain Chain
+func (cc *ChainClient) GetChainByWallet(walletAddress string) (*Chain, error) {
+	var chain *Chain
 	cc.mu.RLock()
+	defer cc.mu.RUnlock()
+
 	for key := range cc.chains {
 		before, _, ok := strings.Cut(walletAddress, key)
 		if ok && before == "" {
@@ -109,17 +122,16 @@ func (cc *ChainClient) GetChainByWallet(walletAddress string) (Chain, error) {
 			break
 		}
 	}
-	cc.mu.RUnlock()
 
-	if chain.ID == "" {
-		return chain, ErrChainNotFound
+	if chain == nil {
+		return nil, ErrChainNotFound
 	}
 
 	return chain, nil
 }
 
-func (cc *ChainClient) GetRPCConnection(ctx context.Context, chain Chain) (RPCConnection, error) {
-	rpc, err := chain.Info.GetRandomRPCEndpoint(ctx)
+func (cc *ChainClient) GetRPCConnection(ctx context.Context, chain *Chain) (RPCConnection, error) {
+	rpc, err := chain.getRpc(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +153,8 @@ func (cc *ChainClient) GetRPCConnection(ctx context.Context, chain Chain) (RPCCo
 	return chainClient, nil
 }
 
-func (cc *ChainClient) GetRPCConnectionWithMnemonic(ctx context.Context, mnemonic string, chain Chain) (RPCConnection, error) {
-	rpc, err := chain.Info.GetRandomRPCEndpoint(ctx)
+func (cc *ChainClient) GetRPCConnectionWithMnemonic(ctx context.Context, mnemonic string, chain *Chain) (RPCConnection, error) {
+	rpc, err := chain.getRpc(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +165,7 @@ func (cc *ChainClient) GetRPCConnectionWithMnemonic(ctx context.Context, mnemoni
 		RPCAddr:        rpc,
 		AccountPrefix:  chain.Prefix,
 		ChainID:        chain.ID,
-		GasAdjustment:  1.3,
+		GasAdjustment:  1.2,
 		GasPrices:      chain.GetLowGasPrice(),
 		Timeout:        "30s",
 		OutputFormat:   "json",
@@ -179,7 +191,7 @@ type assets struct {
 	Assets []Asset `json:"assets"`
 }
 
-func (cc *ChainClient) readChainFile(chainFileName string, assetFileName string, chains map[string]Chain) error {
+func (cc *ChainClient) readChainFile(chainFileName string, assetFileName string, rpcLifetime time.Duration, chains map[string]*Chain) error {
 	chainFile, err := os.ReadFile(chainFileName)
 	if err != nil {
 		return err
@@ -207,6 +219,8 @@ func (cc *ChainClient) readChainFile(chainFileName string, assetFileName string,
 
 	chain.Info = chainInfo
 	chain.Asset = asset.Assets[0]
-	chains[chain.Prefix] = chain
+	chain.rpcLifetime = rpcLifetime
+	chain.rpcMutex = sync.RWMutex{}
+	chains[chain.Prefix] = &chain
 	return nil
 }

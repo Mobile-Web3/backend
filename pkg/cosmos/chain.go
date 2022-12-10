@@ -1,9 +1,12 @@
 package cosmos
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	registry "github.com/strangelove-ventures/lens/client/chain_registry"
 )
@@ -59,18 +62,49 @@ type Chain struct {
 	Api        Api                `json:"apis"`
 	Info       registry.ChainInfo `json:"-"`
 	Asset      Asset              `json:"-"`
+
+	isConnectionInit bool
+	activeRPC        string
+	rpcMutex         sync.RWMutex
+	rpcLifetime      time.Duration
+}
+
+func (c *Chain) invalidateRPC() {
+	c.rpcMutex.Lock()
+	c.isConnectionInit = false
+	c.rpcMutex.Unlock()
+}
+
+func (c *Chain) getRpc(ctx context.Context) (string, error) {
+	c.rpcMutex.RLock()
+	if c.isConnectionInit {
+		c.rpcMutex.RUnlock()
+		return c.activeRPC, nil
+	}
+	c.rpcMutex.RUnlock()
+	c.rpcMutex.Lock()
+	rpc, err := c.Info.GetRandomRPCEndpoint(ctx)
+	if err != nil {
+		c.rpcMutex.Unlock()
+		return "", err
+	}
+	c.activeRPC = rpc
+	c.isConnectionInit = true
+	c.rpcMutex.Unlock()
+	time.AfterFunc(c.rpcLifetime, c.invalidateRPC)
+	return rpc, nil
 }
 
 func (c *Chain) GetLowGasPrice() string {
 	for _, feeToken := range c.Fees.FeeTokens {
 		if feeToken.Denom == c.Asset.Base {
 			if feeToken.LowGasPrice == 0 {
-				return "0.1" + feeToken.Denom
+				return "0.01" + feeToken.Denom
 			}
 			return fmt.Sprintf("%f%s", feeToken.LowGasPrice, feeToken.Denom)
 		}
 	}
-	return "0.1" + c.Asset.Base
+	return "0.01" + c.Asset.Base
 }
 
 func (c *Chain) GetBaseDenom() (denom string, exponent int, err error) {
@@ -117,16 +151,27 @@ func (c *Chain) FromDisplayToBase(amount string) (string, error) {
 		for _, symbol := range amountValues[0] {
 			sb.WriteRune(symbol)
 		}
+		for i := 0; i < exponent; i++ {
+			if len(amountValues[1]) < i+1 {
+				sb.WriteString("0")
+				continue
+			}
+			sb.WriteRune(rune(amountValues[1][i]))
+		}
+		sb.WriteString(denom)
+		return sb.String(), nil
 	}
 
 	for i := 0; i < exponent; i++ {
+		if rune(amountValues[1][i]) == '0' {
+			continue
+		}
 		if len(amountValues[1]) < i+1 {
 			sb.WriteString("0")
 			continue
 		}
 		sb.WriteRune(rune(amountValues[1][i]))
 	}
-
 	sb.WriteString(denom)
 	return sb.String(), nil
 }
