@@ -163,11 +163,11 @@ func (c *Chain) FromDisplayToBase(amount string) (string, error) {
 	}
 
 	for i := 0; i < exponent; i++ {
-		if rune(amountValues[1][i]) == '0' {
-			continue
-		}
 		if len(amountValues[1]) < i+1 {
 			sb.WriteString("0")
+			continue
+		}
+		if rune(amountValues[1][i]) == '0' {
 			continue
 		}
 		sb.WriteRune(rune(amountValues[1][i]))
