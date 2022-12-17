@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/Mobile-Web3/backend/docs/api"
 	"github.com/Mobile-Web3/backend/internal/balance"
+	"github.com/Mobile-Web3/backend/internal/chain"
 	"github.com/Mobile-Web3/backend/internal/transaction"
 	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/env"
@@ -39,6 +40,7 @@ func main() {
 
 	balanceController := balance.NewController(logger, balance.NewService(chainClient))
 	transactionController := transaction.NewController(logger, transaction.NewService(chainClient))
+	chainsController := chain.NewController(chain.NewService(chainClient))
 
 	gin.SetMode("release")
 	router := gin.New()
@@ -50,6 +52,8 @@ func main() {
 	{
 		api.POST("/balance/check", balanceController.GetBalance)
 		api.POST("/transaction/send", transactionController.Send)
+		api.POST("/transaction/simulate", transactionController.Simulate)
+		api.POST("/chains/all", chainsController.GetAllChains)
 	}
 
 	port := os.Getenv("PORT")

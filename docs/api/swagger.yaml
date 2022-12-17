@@ -22,11 +22,40 @@ definitions:
       walletAddress:
         type: string
     type: object
+  chain.ShortResponse:
+    properties:
+      base:
+        type: string
+      bech32Prefix:
+        type: string
+      chainId:
+        type: string
+      chainName:
+        type: string
+      description:
+        type: string
+      display:
+        type: string
+      logoPngUrl:
+        type: string
+      logoSvgUrl:
+        type: string
+      prettyName:
+        type: string
+      slip44:
+        type: integer
+      symbol:
+        type: string
+    type: object
   transaction.SendInput:
     properties:
       amount:
         type: string
       from:
+        type: string
+      gasAdjusted:
+        type: string
+      gasPrice:
         type: string
       memo:
         type: string
@@ -48,6 +77,30 @@ definitions:
       rawLog:
         type: string
       txHash:
+        type: string
+    type: object
+  transaction.SimulateInput:
+    properties:
+      amount:
+        type: string
+      from:
+        type: string
+      memo:
+        type: string
+      mnemonic:
+        type: string
+      to:
+        type: string
+    type: object
+  transaction.SimulateResponse:
+    properties:
+      averageGasPrice:
+        type: string
+      gasAdjusted:
+        type: string
+      highGasPrice:
+        type: string
+      lowGasPrice:
         type: string
     type: object
 info:
@@ -82,6 +135,27 @@ paths:
       summary: Получить инфу о балансе
       tags:
       - balance
+  /chains/all:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/chain.ShortResponse'
+                  type: array
+              type: object
+      summary: Получение данных о сетях
+      tags:
+      - chain
   /transaction/send:
     post:
       consumes:
@@ -106,6 +180,32 @@ paths:
                   $ref: '#/definitions/transaction.SendResponse'
               type: object
       summary: Отправить транзакцию
+      tags:
+      - transaction
+  /transaction/simulate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/transaction.SimulateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/transaction.SimulateResponse'
+              type: object
+      summary: Симуляция транзакции для расчета параметров
       tags:
       - transaction
 swagger: "2.0"

@@ -3,12 +3,17 @@ package cosmos
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	registry "github.com/strangelove-ventures/lens/client/chain_registry"
+)
+
+const (
+	gasPriceLow     = 0.01
+	gasPriceAverage = 0.025
+	gasPriceHigh    = 0.04
 )
 
 var (
@@ -23,12 +28,18 @@ type DenomUnit struct {
 	Exponent int    `json:"exponent"`
 }
 
+type Logo struct {
+	Png string `json:"png"`
+	Svg string `json:"svg"`
+}
+
 type Asset struct {
 	Description string      `json:"description"`
 	Base        string      `json:"base"`
 	Symbol      string      `json:"symbol"`
 	Display     string      `json:"display"`
 	DenomUnits  []DenomUnit `json:"denom_units"`
+	Logo        Logo        `json:"logo_URIs"`
 }
 
 type Rpc struct {
@@ -63,6 +74,10 @@ type Chain struct {
 	Info       registry.ChainInfo `json:"-"`
 	Asset      Asset              `json:"-"`
 
+	LowGasPrice     float64 `json:"-"`
+	AverageGasPrice float64 `json:"-"`
+	HighGasPrice    float64 `json:"-"`
+
 	isConnectionInit bool
 	activeRPC        string
 	rpcMutex         sync.RWMutex
@@ -93,18 +108,6 @@ func (c *Chain) getRpc(ctx context.Context) (string, error) {
 	c.rpcMutex.Unlock()
 	time.AfterFunc(c.rpcLifetime, c.invalidateRPC)
 	return rpc, nil
-}
-
-func (c *Chain) GetLowGasPrice() string {
-	for _, feeToken := range c.Fees.FeeTokens {
-		if feeToken.Denom == c.Asset.Base {
-			if feeToken.LowGasPrice == 0 {
-				return "0.01" + feeToken.Denom
-			}
-			return fmt.Sprintf("%f%s", feeToken.LowGasPrice, feeToken.Denom)
-		}
-	}
-	return "0.01" + c.Asset.Base
 }
 
 func (c *Chain) GetBaseDenom() (denom string, exponent int, err error) {

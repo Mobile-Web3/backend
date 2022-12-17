@@ -61,6 +61,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/chains/all": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chain"
+                ],
+                "summary": "Получение данных о сетях",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/chain.ShortResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/transaction/send": {
             "post": {
                 "consumes": [
@@ -97,6 +134,51 @@ const docTemplate = `{
                                     "properties": {
                                         "result": {
                                             "$ref": "#/definitions/transaction.SendResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/transaction/simulate": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transaction"
+                ],
+                "summary": "Симуляция транзакции для расчета параметров",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/transaction.SimulateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/transaction.SimulateResponse"
                                         }
                                     }
                                 }
@@ -142,6 +224,44 @@ const docTemplate = `{
                 }
             }
         },
+        "chain.ShortResponse": {
+            "type": "object",
+            "properties": {
+                "base": {
+                    "type": "string"
+                },
+                "bech32Prefix": {
+                    "type": "string"
+                },
+                "chainId": {
+                    "type": "string"
+                },
+                "chainName": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display": {
+                    "type": "string"
+                },
+                "logoPngUrl": {
+                    "type": "string"
+                },
+                "logoSvgUrl": {
+                    "type": "string"
+                },
+                "prettyName": {
+                    "type": "string"
+                },
+                "slip44": {
+                    "type": "integer"
+                },
+                "symbol": {
+                    "type": "string"
+                }
+            }
+        },
         "transaction.SendInput": {
             "type": "object",
             "properties": {
@@ -149,6 +269,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "from": {
+                    "type": "string"
+                },
+                "gasAdjusted": {
+                    "type": "string"
+                },
+                "gasPrice": {
                     "type": "string"
                 },
                 "memo": {
@@ -181,6 +307,43 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SimulateInput": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "mnemonic": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SimulateResponse": {
+            "type": "object",
+            "properties": {
+                "averageGasPrice": {
+                    "type": "string"
+                },
+                "gasAdjusted": {
+                    "type": "string"
+                },
+                "highGasPrice": {
+                    "type": "string"
+                },
+                "lowGasPrice": {
                     "type": "string"
                 }
             }

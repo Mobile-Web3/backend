@@ -6,29 +6,31 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	lens "github.com/strangelove-ventures/lens/client"
 	registry "github.com/strangelove-ventures/lens/client/chain_registry"
 	"go.uber.org/zap"
 )
 
 var (
-	ErrInvalidGitURL    = errors.New("invalid git url")
-	ErrEmptyRegistryURL = errors.New("empty CHAIN_REGISTRY_URL")
-	ErrEmptyRegistryDir = errors.New("empty REGISTRY_DIR")
-	ErrChainNotFound    = errors.New("chain not found")
+	ErrInvalidGitURL      = errors.New("invalid git url")
+	ErrEmptyRegistryURL   = errors.New("empty CHAIN_REGISTRY_URL env")
+	ErrEmptyRegistryDir   = errors.New("empty REGISTRY_DIR env")
+	ErrEmptyGasAdjustment = errors.New("empty GAS_ADJUSTMENT env")
+	ErrChainNotFound      = errors.New("chain not found")
 )
 
 type ChainClient struct {
-	registryURL string
-	registryDir string
-	chains      map[string]*Chain
-	mu          sync.RWMutex
-	zapLogger   *zap.Logger
-	homePath    string
+	registryURL   string
+	registryDir   string
+	chains        map[string]*Chain
+	mu            sync.RWMutex
+	zapLogger     *zap.Logger
+	homePath      string
+	gasAdjustment float64
 }
 
 func NewChainClient() (*ChainClient, error) {
@@ -55,15 +57,25 @@ func NewChainClient() (*ChainClient, error) {
 		return nil, ErrInvalidGitURL
 	}
 
-	chainClient := &ChainClient{
-		registryURL: url,
-		registryDir: registryDir,
-		mu:          sync.RWMutex{},
-		zapLogger:   zap.L(),
-		homePath:    os.Getenv("HOME"),
+	gasAdjustmentStr := os.Getenv("GAS_ADJUSTMENT")
+	if gasAdjustmentStr == "" {
+		return nil, ErrEmptyGasAdjustment
+	}
+	gasAdjustment, err := strconv.ParseFloat(gasAdjustmentStr, 64)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := chainClient.UploadChainInfo(); err != nil {
+	chainClient := &ChainClient{
+		registryURL:   url,
+		registryDir:   registryDir,
+		mu:            sync.RWMutex{},
+		zapLogger:     zap.L(),
+		homePath:      os.Getenv("HOME"),
+		gasAdjustment: gasAdjustment,
+	}
+
+	if err = chainClient.UploadChainInfo(); err != nil {
 		return nil, err
 	}
 
@@ -110,6 +122,14 @@ func (cc *ChainClient) UploadChainInfo() error {
 	return nil
 }
 
+func (cc *ChainClient) GetAllChains() []*Chain {
+	var result []*Chain
+	for _, chain := range cc.chains {
+		result = append(result, chain)
+	}
+	return result
+}
+
 func (cc *ChainClient) GetChainByWallet(walletAddress string) (*Chain, error) {
 	var chain *Chain
 	cc.mu.RLock()
@@ -136,21 +156,20 @@ func (cc *ChainClient) GetRPCConnection(ctx context.Context, chain *Chain) (RPCC
 		return nil, err
 	}
 
-	chainConfig := lens.ChainClientConfig{
-		Key:            "default",
-		KeyringBackend: "memory",
-		RPCAddr:        rpc,
-		AccountPrefix:  chain.Prefix,
-		ChainID:        chain.ID,
-		Timeout:        "5s",
+	config := rpcConfig{
+		RpcURL:        rpc,
+		ChainID:       chain.ID,
+		ChainPrefix:   chain.Prefix,
+		HomePath:      cc.homePath,
+		GasAdjustment: cc.gasAdjustment,
 	}
 
-	chainClient, err := lens.NewChainClient(cc.zapLogger, &chainConfig, cc.homePath, os.Stdin, os.Stdout)
+	lensClient, err := newLensClient(cc.zapLogger, config)
 	if err != nil {
 		return nil, err
 	}
 
-	return chainClient, nil
+	return lensClient, nil
 }
 
 func (cc *ChainClient) GetRPCConnectionWithMnemonic(ctx context.Context, mnemonic string, chain *Chain) (RPCConnection, error) {
@@ -159,32 +178,22 @@ func (cc *ChainClient) GetRPCConnectionWithMnemonic(ctx context.Context, mnemoni
 		return nil, err
 	}
 
-	chainConfig := lens.ChainClientConfig{
-		Key:            "default",
-		KeyringBackend: "memory",
-		RPCAddr:        rpc,
-		AccountPrefix:  chain.Prefix,
-		ChainID:        chain.ID,
-		GasAdjustment:  1.2,
-		GasPrices:      chain.GetLowGasPrice(),
-		Timeout:        "30s",
-		OutputFormat:   "json",
-		SignModeStr:    "direct",
-		Modules:        lens.ModuleBasics,
+	config := rpcConfig{
+		RpcURL:        rpc,
+		ChainID:       chain.ID,
+		ChainPrefix:   chain.Prefix,
+		HomePath:      cc.homePath,
+		Slip44:        chain.Slip44,
+		Mnemonic:      mnemonic,
+		GasAdjustment: cc.gasAdjustment,
 	}
 
-	chainClient, err := lens.NewChainClient(cc.zapLogger, &chainConfig, cc.homePath, os.Stdin, os.Stdout)
+	lensClient, err := newLensClient(cc.zapLogger, config)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = chainClient.RestoreKey("source_key", mnemonic, chain.Slip44)
-	if err != nil {
-		return nil, err
-	}
-
-	chainConfig.Key = "source_key"
-	return chainClient, nil
+	return lensClient, nil
 }
 
 type assets struct {
@@ -221,6 +230,23 @@ func (cc *ChainClient) readChainFile(chainFileName string, assetFileName string,
 	chain.Asset = asset.Assets[0]
 	chain.rpcLifetime = rpcLifetime
 	chain.rpcMutex = sync.RWMutex{}
+
+	for _, feeToken := range chain.Fees.FeeTokens {
+		if feeToken.Denom == chain.Asset.Base {
+			if feeToken.LowGasPrice <= 0 && feeToken.AverageGasPrice <= 0 && feeToken.HighGasPrice <= 0 {
+				chain.LowGasPrice = gasPriceLow + feeToken.MinGasPrice
+				chain.AverageGasPrice = gasPriceAverage + feeToken.MinGasPrice
+				chain.HighGasPrice = gasPriceHigh + feeToken.MinGasPrice
+				break
+			}
+
+			chain.LowGasPrice = feeToken.LowGasPrice + feeToken.MinGasPrice
+			chain.AverageGasPrice = feeToken.AverageGasPrice + feeToken.MinGasPrice
+			chain.HighGasPrice = feeToken.HighGasPrice + feeToken.MinGasPrice
+			break
+		}
+	}
+
 	chains[chain.Prefix] = &chain
 	return nil
 }
