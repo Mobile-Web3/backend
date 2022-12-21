@@ -8,7 +8,12 @@ definitions:
         type: boolean
       result: {}
     type: object
-  balance.CheckResponse:
+  api.checkRequest:
+    properties:
+      walletAddress:
+        type: string
+    type: object
+  chain.CheckResponse:
     properties:
       availableAmount:
         type: string
@@ -17,37 +22,7 @@ definitions:
       totalAmount:
         type: string
     type: object
-  balance.checkRequest:
-    properties:
-      walletAddress:
-        type: string
-    type: object
-  chain.ShortResponse:
-    properties:
-      base:
-        type: string
-      bech32Prefix:
-        type: string
-      chainId:
-        type: string
-      chainName:
-        type: string
-      description:
-        type: string
-      display:
-        type: string
-      logoPngUrl:
-        type: string
-      logoSvgUrl:
-        type: string
-      prettyName:
-        type: string
-      slip44:
-        type: integer
-      symbol:
-        type: string
-    type: object
-  transaction.SendInput:
+  chain.SendTxInput:
     properties:
       amount:
         type: string
@@ -64,7 +39,7 @@ definitions:
       to:
         type: string
     type: object
-  transaction.SendResponse:
+  chain.SendTxResponse:
     properties:
       data:
         type: string
@@ -79,7 +54,36 @@ definitions:
       txHash:
         type: string
     type: object
-  transaction.SimulateInput:
+  chain.ShortResponse:
+    properties:
+      base:
+        type: string
+      bech32Prefix:
+        type: string
+      chainId:
+        type: string
+      chainName:
+        type: string
+      description:
+        type: string
+      display:
+        type: string
+      keyAlgos:
+        items:
+          type: string
+        type: array
+      logoPngUrl:
+        type: string
+      logoSvgUrl:
+        type: string
+      prettyName:
+        type: string
+      slip44:
+        type: integer
+      symbol:
+        type: string
+    type: object
+  chain.SimulateTxInput:
     properties:
       amount:
         type: string
@@ -92,7 +96,7 @@ definitions:
       to:
         type: string
     type: object
-  transaction.SimulateResponse:
+  chain.SimulateTxResponse:
     properties:
       averageGasPrice:
         type: string
@@ -119,7 +123,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/balance.checkRequest'
+          $ref: '#/definitions/api.checkRequest'
       produces:
       - application/json
       responses:
@@ -130,7 +134,7 @@ paths:
             - $ref: '#/definitions/api.Response'
             - properties:
                 result:
-                  $ref: '#/definitions/balance.CheckResponse'
+                  $ref: '#/definitions/chain.CheckResponse'
               type: object
       summary: Получить инфу о балансе
       tags:
@@ -166,7 +170,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/transaction.SendInput'
+          $ref: '#/definitions/chain.SendTxInput'
       produces:
       - application/json
       responses:
@@ -177,7 +181,7 @@ paths:
             - $ref: '#/definitions/api.Response'
             - properties:
                 result:
-                  $ref: '#/definitions/transaction.SendResponse'
+                  $ref: '#/definitions/chain.SendTxResponse'
               type: object
       summary: Отправить транзакцию
       tags:
@@ -192,7 +196,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/transaction.SimulateInput'
+          $ref: '#/definitions/chain.SimulateTxInput'
       produces:
       - application/json
       responses:
@@ -203,7 +207,7 @@ paths:
             - $ref: '#/definitions/api.Response'
             - properties:
                 result:
-                  $ref: '#/definitions/transaction.SimulateResponse'
+                  $ref: '#/definitions/chain.SimulateTxResponse'
               type: object
       summary: Симуляция транзакции для расчета параметров
       tags:

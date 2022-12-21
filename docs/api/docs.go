@@ -35,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/balance.checkRequest"
+                            "$ref": "#/definitions/api.checkRequest"
                         }
                     }
                 ],
@@ -51,7 +51,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/balance.CheckResponse"
+                                            "$ref": "#/definitions/chain.CheckResponse"
                                         }
                                     }
                                 }
@@ -117,7 +117,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/transaction.SendInput"
+                            "$ref": "#/definitions/chain.SendTxInput"
                         }
                     }
                 ],
@@ -133,7 +133,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/transaction.SendResponse"
+                                            "$ref": "#/definitions/chain.SendTxResponse"
                                         }
                                     }
                                 }
@@ -162,7 +162,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/transaction.SimulateInput"
+                            "$ref": "#/definitions/chain.SimulateTxInput"
                         }
                     }
                 ],
@@ -178,7 +178,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/transaction.SimulateResponse"
+                                            "$ref": "#/definitions/chain.SimulateTxResponse"
                                         }
                                     }
                                 }
@@ -202,7 +202,15 @@ const docTemplate = `{
                 "result": {}
             }
         },
-        "balance.CheckResponse": {
+        "api.checkRequest": {
+            "type": "object",
+            "properties": {
+                "walletAddress": {
+                    "type": "string"
+                }
+            }
+        },
+        "chain.CheckResponse": {
             "type": "object",
             "properties": {
                 "availableAmount": {
@@ -216,53 +224,7 @@ const docTemplate = `{
                 }
             }
         },
-        "balance.checkRequest": {
-            "type": "object",
-            "properties": {
-                "walletAddress": {
-                    "type": "string"
-                }
-            }
-        },
-        "chain.ShortResponse": {
-            "type": "object",
-            "properties": {
-                "base": {
-                    "type": "string"
-                },
-                "bech32Prefix": {
-                    "type": "string"
-                },
-                "chainId": {
-                    "type": "string"
-                },
-                "chainName": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "display": {
-                    "type": "string"
-                },
-                "logoPngUrl": {
-                    "type": "string"
-                },
-                "logoSvgUrl": {
-                    "type": "string"
-                },
-                "prettyName": {
-                    "type": "string"
-                },
-                "slip44": {
-                    "type": "integer"
-                },
-                "symbol": {
-                    "type": "string"
-                }
-            }
-        },
-        "transaction.SendInput": {
+        "chain.SendTxInput": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -288,7 +250,7 @@ const docTemplate = `{
                 }
             }
         },
-        "transaction.SendResponse": {
+        "chain.SendTxResponse": {
             "type": "object",
             "properties": {
                 "data": {
@@ -311,7 +273,51 @@ const docTemplate = `{
                 }
             }
         },
-        "transaction.SimulateInput": {
+        "chain.ShortResponse": {
+            "type": "object",
+            "properties": {
+                "base": {
+                    "type": "string"
+                },
+                "bech32Prefix": {
+                    "type": "string"
+                },
+                "chainId": {
+                    "type": "string"
+                },
+                "chainName": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display": {
+                    "type": "string"
+                },
+                "keyAlgos": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "logoPngUrl": {
+                    "type": "string"
+                },
+                "logoSvgUrl": {
+                    "type": "string"
+                },
+                "prettyName": {
+                    "type": "string"
+                },
+                "slip44": {
+                    "type": "integer"
+                },
+                "symbol": {
+                    "type": "string"
+                }
+            }
+        },
+        "chain.SimulateTxInput": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -331,7 +337,7 @@ const docTemplate = `{
                 }
             }
         },
-        "transaction.SimulateResponse": {
+        "chain.SimulateTxResponse": {
             "type": "object",
             "properties": {
                 "averageGasPrice": {
