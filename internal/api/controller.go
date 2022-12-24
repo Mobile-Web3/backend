@@ -3,8 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/Mobile-Web3/backend/internal/domain/chain"
-	"github.com/Mobile-Web3/backend/pkg/api"
+	"github.com/Mobile-Web3/backend/internal/chain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,17 +35,17 @@ type checkRequest struct {
 func (c *Controller) CheckBalance(context *gin.Context) {
 	request := checkRequest{}
 	if err := context.BindJSON(&request); err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
 	response, err := c.chainService.CheckBalance(context.Request.Context(), request.WalletAddress)
 	if err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
-	context.JSON(http.StatusOK, api.NewSuccessResponse(response))
+	context.JSON(http.StatusOK, newSuccessResponse(response))
 }
 
 // SendTransaction godoc
@@ -61,17 +60,17 @@ func (c *Controller) CheckBalance(context *gin.Context) {
 func (c *Controller) SendTransaction(context *gin.Context) {
 	request := chain.SendTxInput{}
 	if err := context.BindJSON(&request); err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
 	response, err := c.chainService.SendTransaction(context.Request.Context(), request)
 	if err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
-	context.JSON(http.StatusOK, api.NewSuccessResponse(response))
+	context.JSON(http.StatusOK, newSuccessResponse(response))
 }
 
 // SimulateTransaction godoc
@@ -86,17 +85,17 @@ func (c *Controller) SendTransaction(context *gin.Context) {
 func (c *Controller) SimulateTransaction(context *gin.Context) {
 	request := chain.SimulateTxInput{}
 	if err := context.BindJSON(&request); err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
 	response, err := c.chainService.SimulateTransaction(context.Request.Context(), request)
 	if err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
-	context.JSON(http.StatusOK, api.NewSuccessResponse(response))
+	context.JSON(http.StatusOK, newSuccessResponse(response))
 }
 
 // GetAllChains godoc
@@ -110,9 +109,9 @@ func (c *Controller) SimulateTransaction(context *gin.Context) {
 func (c *Controller) GetAllChains(context *gin.Context) {
 	chains, err := c.chainRepository.GetAllChains(context.Request.Context())
 	if err != nil {
-		context.JSON(http.StatusOK, api.NewErrorResponse(err.Error()))
+		context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 		return
 	}
 
-	context.JSON(http.StatusOK, api.NewSuccessResponse(chains))
+	context.JSON(http.StatusOK, newSuccessResponse(chains))
 }

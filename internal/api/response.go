@@ -6,14 +6,14 @@ type Response struct {
 	Result    interface{} `json:"result"`
 }
 
-func NewSuccessResponse(result interface{}) Response {
+func newSuccessResponse(result interface{}) Response {
 	return Response{
 		IsSuccess: true,
 		Result:    result,
 	}
 }
 
-func NewErrorResponse(error string) Response {
+func newErrorResponse(error string) Response {
 	return Response{
 		IsSuccess: false,
 		Error:     error,

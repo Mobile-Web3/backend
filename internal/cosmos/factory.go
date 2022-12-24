@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Mobile-Web3/backend/internal/domain/chain"
+	"github.com/Mobile-Web3/backend/internal/chain"
 	"go.uber.org/zap"
 )
 

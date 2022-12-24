@@ -13,12 +13,11 @@ import (
 	"time"
 
 	_ "github.com/Mobile-Web3/backend/docs/api"
-	"github.com/Mobile-Web3/backend/internal/domain/chain"
-	"github.com/Mobile-Web3/backend/internal/infrastructure/cosmos"
-	response "github.com/Mobile-Web3/backend/pkg/api"
+	"github.com/Mobile-Web3/backend/internal/chain"
+	"github.com/Mobile-Web3/backend/internal/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/env"
 	"github.com/gin-gonic/gin"
-	httpSwagger "github.com/swaggo/http-swagger"
+	swagger "github.com/swaggo/http-swagger"
 )
 
 // @title           Swagger UI
@@ -74,7 +73,14 @@ func Run() {
 		return
 	}
 
-	chainRegistry, err := cosmos.NewChainRegistry(url, registryDir)
+	chainRepository := cosmos.NewChainRepository()
+	chainRegistry, err := cosmos.NewChainRegistry(url, registryDir, chainRepository)
+	if err != nil {
+		errorLogger.Println(err)
+		return
+	}
+
+	err = chainRegistry.UploadChainInfo(context.Background())
 	if err != nil {
 		errorLogger.Println(err)
 		return
@@ -91,17 +97,17 @@ func Run() {
 	}
 
 	chainClientFactory := cosmos.NewClientFactory(rpcLifetime, errorLogger)
-	chainService := chain.NewService(gasAdjustment, chainRegistry, chainClientFactory)
-	controller := NewController(chainRegistry, chainService)
+	chainService := chain.NewService(gasAdjustment, chainRepository, chainClientFactory)
+	controller := NewController(chainRepository, chainService)
 
 	gin.SetMode("release")
 	router := gin.New()
 
 	router.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
-		c.JSON(http.StatusOK, response.NewErrorResponse("internal error"))
+		c.JSON(http.StatusOK, newErrorResponse("internal error"))
 	}))
 
-	swaggerHandler := gin.WrapH(httpSwagger.Handler(httpSwagger.URL("doc.json")))
+	swaggerHandler := gin.WrapH(swagger.Handler(swagger.URL("doc.json")))
 	router.GET("/api/swagger/*any", swaggerHandler)
 
 	api := router.Group("/api")
@@ -123,18 +129,18 @@ func Run() {
 	}
 
 	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-
-		infoLogger.Println("server shutting down")
-		if err = server.Shutdown(context.Background()); err != nil {
+		infoLogger.Println("server started")
+		if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errorLogger.Println(err)
 		}
 	}()
 
-	infoLogger.Println("server started")
-	if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	infoLogger.Println("server shutting down")
+	if err = server.Shutdown(context.Background()); err != nil {
 		errorLogger.Println(err)
 	}
 }

@@ -21,4 +21,5 @@ type Repository interface {
 	GetAllChains(ctx context.Context) ([]ShortResponse, error)
 	GetAllPrefixes(ctx context.Context) ([]string, error)
 	GetChainByPrefix(ctx context.Context, prefix string) (Chain, error)
+	UpdateChains(ctx context.Context, chains []Chain) error
 }
