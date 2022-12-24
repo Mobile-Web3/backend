@@ -6,8 +6,8 @@ services:
     ports:
       - "8090:8090"
     volumes:
-      - /home/mobileweb3/environment/api/.env:/app/.env
-      - /home/mobileweb3/chain-registry:/app/chain-registry
+      - /home/mw3/environment/api/.env:/app/.env
+      - /home/mw3/chain-registry:/app/chain-registry
     build:
       context: ..
       dockerfile: build/Dockerfile-api
