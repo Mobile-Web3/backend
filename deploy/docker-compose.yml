@@ -9,8 +9,9 @@ services:
       - /home/mw3/ssl/www.mobileweb3.tech.key:/etc/nginx/www.mobileweb3.tech.key
       - /home/mw3/site/index.html:/etc/nginx/index.html
       - /home/mw3/site/style.css:/etc/nginx/style.css
-      - /home/mw3/site/fonts:/etc/nginx/fonts
-      - /home/mw3/site/assets:/etc/nginx/assets
+      - /home/mw3/site/image:/etc/nginx/image
+      - /home/mw3/site/vendor:/etc/nginx/vendor
+      - /home/mw3/site/vendor/fonts:/etc/nginx/vendor/fonts
     ports:
       - "80:80"
       - "443:443"
