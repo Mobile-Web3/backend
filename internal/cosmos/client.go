@@ -9,11 +9,16 @@ import (
 	"strconv"
 
 	"github.com/Mobile-Web3/backend/internal/chain"
+	"github.com/Mobile-Web3/backend/pkg/cosmos"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	lens "github.com/strangelove-ventures/lens/client"
+	abci "github.com/tendermint/tendermint/abci/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"go.uber.org/zap"
 )
 
@@ -205,20 +210,70 @@ func (c *LensCosmosClient) SimulateTransaction(ctx context.Context, txData chain
 		Amount:      sdk.Coins{coins},
 	}
 
-	txf, err := c.client.PrepareFactory(c.createFactory())
+	rpcClient, err := client.NewClientFromNode(c.client.Config.RPCAddr)
 	if err != nil {
 		c.errorLogger.Println(err)
 		return chain.SimulateTxResult{}, err
 	}
 
-	response, _, err := c.client.CalculateGas(ctx, txf, msgSend)
+	txf := cosmos.CreateTxFactory(cosmos.CreateFactoryContext{
+		ChainID:          c.client.Config.ChainID,
+		TxConfig:         c.client.Codec.TxConfig,
+		AccountRetriever: c.client,
+		KeyBase:          c.client.Keybase,
+		SignMode:         c.client.Config.SignMode(),
+	})
+
+	if txf, err = cosmos.PrepareTxFactory(cosmos.PrepareFactoryContext{
+		Key:               c.client.Config.Key,
+		KeyBase:           c.client.Keybase,
+		RPCClient:         rpcClient,
+		Factory:           txf,
+		InterfaceRegistry: c.client.Codec.InterfaceRegistry,
+		Codec:             c.client.Codec.Marshaler,
+	}); err != nil {
+		c.errorLogger.Println(err)
+		return chain.SimulateTxResult{}, err
+	}
+
+	keyRecord, err := c.client.Keybase.Key(c.client.Config.Key)
 	if err != nil {
+		c.errorLogger.Println(err)
+		return chain.SimulateTxResult{}, err
+	}
+
+	txBytes, err := cosmos.BuildTransaction(txf, keyRecord, msgSend)
+	if err != nil {
+		c.errorLogger.Println(err)
+		return chain.SimulateTxResult{}, err
+	}
+	simQuery := abci.RequestQuery{
+		Path: "/cosmos.tx.v1beta1.Service/Simulate",
+		Data: txBytes,
+	}
+
+	opts := rpcclient.ABCIQueryOptions{
+		Height: simQuery.Height,
+		Prove:  simQuery.Prove,
+	}
+	response, err := rpcClient.ABCIQueryWithOptions(ctx, simQuery.Path, simQuery.Data, opts)
+	if err != nil {
+		c.errorLogger.Println(err)
+		return chain.SimulateTxResult{}, err
+	}
+
+	if response.Response.Code != 0 {
+
+	}
+
+	var result txtypes.SimulateResponse
+	if err = result.Unmarshal(response.Response.Value); err != nil {
 		c.errorLogger.Println(err)
 		return chain.SimulateTxResult{}, err
 	}
 
 	return chain.SimulateTxResult{
-		GasUsed: float64(response.GasInfo.GasUsed),
+		GasUsed: float64(result.GasInfo.GasUsed),
 	}, nil
 }
 
