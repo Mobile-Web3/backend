@@ -19,6 +19,7 @@ import (
 	lens "github.com/strangelove-ventures/lens/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	"go.uber.org/zap"
 )
 
@@ -137,7 +138,13 @@ func (c *LensCosmosClient) SendTransaction(ctx context.Context, txData chain.Sen
 		Amount:      sdk.Coins{coins},
 	}
 
-	txf, err := c.client.PrepareFactory(c.createFactory())
+	rpcClient, err := client.NewClientFromNode(c.client.Config.RPCAddr)
+	if err != nil {
+		c.errorLogger.Println(err)
+		return chain.SendTxResponse{}, err
+	}
+
+	txf, err := c.createFactory(rpcClient)
 	if err != nil {
 		c.errorLogger.Println(err)
 		return chain.SendTxResponse{}, err
@@ -175,25 +182,25 @@ func (c *LensCosmosClient) SendTransaction(ctx context.Context, txData chain.Sen
 		return chain.SendTxResponse{}, err
 	}
 
-	response, err := c.client.BroadcastTx(ctx, txBytes)
+	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
 		c.errorLogger.Println(err)
 		return chain.SendTxResponse{}, err
 	}
 
 	if response.Code != 0 {
-		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s", response.Code, response.TxHash)
+		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s", response.Code, response.Hash.String())
 		c.errorLogger.Println(err)
 		return chain.SendTxResponse{}, err
 	}
 
 	return chain.SendTxResponse{
-		Height:    response.Height,
-		TxHash:    response.TxHash,
-		Data:      response.Data,
-		GasWanted: response.GasWanted,
-		GasUsed:   response.GasUsed,
-		RawLog:    response.RawLog,
+		Height:    0,
+		TxHash:    response.Hash.String(),
+		Data:      response.Data.String(),
+		GasWanted: 0,
+		GasUsed:   0,
+		RawLog:    response.Log,
 	}, nil
 }
 
@@ -216,22 +223,8 @@ func (c *LensCosmosClient) SimulateTransaction(ctx context.Context, txData chain
 		return chain.SimulateTxResult{}, err
 	}
 
-	txf := cosmos.CreateTxFactory(cosmos.CreateFactoryContext{
-		ChainID:          c.client.Config.ChainID,
-		TxConfig:         c.client.Codec.TxConfig,
-		AccountRetriever: c.client,
-		KeyBase:          c.client.Keybase,
-		SignMode:         c.client.Config.SignMode(),
-	})
-
-	if txf, err = cosmos.PrepareTxFactory(cosmos.PrepareFactoryContext{
-		Key:               c.client.Config.Key,
-		KeyBase:           c.client.Keybase,
-		RPCClient:         rpcClient,
-		Factory:           txf,
-		InterfaceRegistry: c.client.Codec.InterfaceRegistry,
-		Codec:             c.client.Codec.Marshaler,
-	}); err != nil {
+	txf, err := c.createFactory(rpcClient)
+	if err != nil {
 		c.errorLogger.Println(err)
 		return chain.SimulateTxResult{}, err
 	}
@@ -277,12 +270,26 @@ func (c *LensCosmosClient) SimulateTransaction(ctx context.Context, txData chain
 	}, nil
 }
 
-func (c *LensCosmosClient) createFactory() tx.Factory {
-	return tx.Factory{}.
-		WithAccountRetriever(c.client).
-		WithChainID(c.client.Config.ChainID).
-		WithTxConfig(c.client.Codec.TxConfig).
-		WithGasPrices(c.client.Config.GasPrices).
-		WithKeybase(c.client.Keybase).
-		WithSignMode(c.client.Config.SignMode())
+func (c *LensCosmosClient) createFactory(rpcClient *http.HTTP) (tx.Factory, error) {
+	txf := cosmos.CreateTxFactory(cosmos.CreateFactoryContext{
+		ChainID:          c.client.Config.ChainID,
+		TxConfig:         c.client.Codec.TxConfig,
+		AccountRetriever: c.client,
+		KeyBase:          c.client.Keybase,
+		SignMode:         c.client.Config.SignMode(),
+	})
+
+	var err error
+	if txf, err = cosmos.PrepareTxFactory(cosmos.PrepareFactoryContext{
+		Key:               c.client.Config.Key,
+		KeyBase:           c.client.Keybase,
+		RPCClient:         rpcClient,
+		Factory:           txf,
+		InterfaceRegistry: c.client.Codec.InterfaceRegistry,
+		Codec:             c.client.Codec.Marshaler,
+	}); err != nil {
+		return tx.Factory{}, err
+	}
+
+	return txf, nil
 }
