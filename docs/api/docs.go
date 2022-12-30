@@ -253,21 +253,6 @@ const docTemplate = `{
         "chain.SendTxResponse": {
             "type": "object",
             "properties": {
-                "data": {
-                    "type": "string"
-                },
-                "gasUsed": {
-                    "type": "integer"
-                },
-                "gasWanted": {
-                    "type": "integer"
-                },
-                "height": {
-                    "type": "integer"
-                },
-                "rawLog": {
-                    "type": "string"
-                },
                 "txHash": {
                     "type": "string"
                 }

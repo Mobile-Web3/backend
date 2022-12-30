@@ -27,12 +27,7 @@ type SendTxInput struct {
 }
 
 type SendTxResponse struct {
-	Height    int64  `json:"height"`
-	TxHash    string `json:"txHash"`
-	Data      string `json:"data"`
-	GasWanted int64  `json:"gasWanted"`
-	GasUsed   int64  `json:"gasUsed"`
-	RawLog    string `json:"rawLog"`
+	TxHash string `json:"txHash"`
 }
 
 func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendTxResponse, error) {
@@ -101,12 +96,7 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 	}
 
 	return SendTxResponse{
-		Height:    0,
-		TxHash:    response.Hash.String(),
-		Data:      response.Data.String(),
-		GasWanted: 0,
-		GasUsed:   0,
-		RawLog:    response.Log,
+		TxHash: response.Hash.String(),
 	}, nil
 }
 
