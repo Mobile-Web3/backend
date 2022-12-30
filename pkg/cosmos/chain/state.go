@@ -1,4 +1,4 @@
-package cosmos
+package chain
 
 import (
 	"context"
@@ -7,23 +7,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Mobile-Web3/backend/pkg/cosmos"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 var errNoAvailableRPC = errors.New("no available rpc")
 
-type chainState struct {
+type State struct {
 	chainID          string
 	mutex            sync.RWMutex
 	rpc              []string
-	activeRPC        string
+	rpcClient        *http.HTTP
 	isConnectionInit bool
 	rpcLifetime      time.Duration
 	rpcTimer         *time.Timer
 }
 
-func newChainState(chainID string, lifetime time.Duration, rpc []string) *chainState {
-	state := &chainState{
+func NewState(chainID string, lifetime time.Duration, rpc []string) *State {
+	state := &State{
 		chainID:     chainID,
 		mutex:       sync.RWMutex{},
 		rpc:         rpc,
@@ -35,18 +36,18 @@ func newChainState(chainID string, lifetime time.Duration, rpc []string) *chainS
 	return state
 }
 
-func (s *chainState) getActiveRPC(ctx context.Context) (string, error) {
+func (s *State) GetActiveRPC(ctx context.Context) (*http.HTTP, error) {
 	s.mutex.RLock()
 	if s.isConnectionInit {
 		s.mutex.RUnlock()
-		return s.activeRPC, nil
+		return s.rpcClient, nil
 	}
 
 	s.mutex.RUnlock()
 	return s.initHealthRPC(ctx)
 }
 
-func (s *chainState) invalidateRPC() {
+func (s *State) invalidateRPC() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.isConnectionInit = false
@@ -63,7 +64,7 @@ func (s *endpointStorage) addEndpoint(endpoint string) {
 	s.mutex.Unlock()
 }
 
-func (s *chainState) initHealthRPC(ctx context.Context) (string, error) {
+func (s *State) initHealthRPC(ctx context.Context) (*http.HTTP, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -78,25 +79,32 @@ func (s *chainState) initHealthRPC(ctx context.Context) (string, error) {
 
 	wg.Wait()
 	if len(storage.endpoints) == 0 {
-		return "", errNoAvailableRPC
+		return nil, errNoAvailableRPC
 	}
 
+	var endpoint string
 	n := len(storage.endpoints) - 1
 	switch n {
 	case 0:
-		s.activeRPC = storage.endpoints[0]
+		endpoint = storage.endpoints[0]
 	default:
-		s.activeRPC = storage.endpoints[rand.New(rand.NewSource(time.Now().UnixNano())).Intn(n)]
+		endpoint = storage.endpoints[rand.New(rand.NewSource(time.Now().UnixNano())).Intn(n)]
 	}
 
+	rpcClient, err := client.NewClientFromNode(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	s.rpcClient = rpcClient
 	s.rpcTimer.Reset(s.rpcLifetime)
 	s.isConnectionInit = true
-	return s.activeRPC, nil
+	return s.rpcClient, nil
 }
 
 func checkHealthRPC(ctx context.Context, endpoint string, storage *endpointStorage, wg *sync.WaitGroup) {
 	defer wg.Done()
-	err := cosmos.HealthcheckRPC(ctx, endpoint)
+	err := healthcheckRPC(ctx, endpoint)
 	if err != nil {
 		return
 	}

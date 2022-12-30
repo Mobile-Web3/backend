@@ -73,3 +73,29 @@ func (r *ChainRepository) UpdateChains(ctx context.Context, chains []chain.Chain
 	r.responses = responses
 	return nil
 }
+
+func (r *ChainRepository) GetRPCEndpoints(ctx context.Context, chainID string) ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var chainData chain.Chain
+	isFound := false
+	for _, item := range r.chains {
+		if item.ID == chainID {
+			chainData = item
+			isFound = true
+			break
+		}
+	}
+
+	if !isFound {
+		return nil, ErrChainNotFound
+	}
+
+	var endpoints []string
+	for _, endpoint := range chainData.Api.Rpc {
+		endpoints = append(endpoints, endpoint.Address)
+	}
+
+	return endpoints, nil
+}

@@ -4,6 +4,11 @@ import (
 	"context"
 	"math"
 	"math/big"
+
+	"github.com/cosmos/cosmos-sdk/codec"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"google.golang.org/grpc"
 )
 
 type CheckResponse struct {
@@ -18,17 +23,25 @@ func (s *Service) CheckBalance(ctx context.Context, walletAddress string) (Check
 		return CheckResponse{}, err
 	}
 
-	rpcConnection, err := s.connectionFactory.GetRPCConnection(ctx, RPCConfig{
-		ChainID:     chain.ID,
-		ChainPrefix: chain.Prefix,
-		CoinType:    chain.Slip44,
-		RPC:         chain.Api.Rpc,
+	connection, err := grpc.Dial("grpc-cosmoshub.blockapsis.com:9090",
+		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(grpc.ForceCodec(codec.NewProtoCodec(nil).GRPCCodec())))
+	if err != nil {
+		return CheckResponse{}, err
+	}
+
+	bankClient := bank.NewQueryClient(connection)
+	bankResponse, err := bankClient.AllBalances(ctx, &bank.QueryAllBalancesRequest{
+		Address: walletAddress,
 	})
 	if err != nil {
 		return CheckResponse{}, err
 	}
 
-	balance, err := rpcConnection.GetBalance(ctx, walletAddress)
+	stackingClient := staking.NewQueryClient(connection)
+	stakingResponse, err := stackingClient.DelegatorDelegations(ctx, &staking.QueryDelegatorDelegationsRequest{
+		DelegatorAddr: walletAddress,
+	})
 	if err != nil {
 		return CheckResponse{}, err
 	}
@@ -37,8 +50,10 @@ func (s *Service) CheckBalance(ctx context.Context, walletAddress string) (Check
 	for _, denomUnit := range chain.Asset.DenomUnits {
 		if denomUnit.Denom == chain.Asset.Display {
 			multiplier := big.NewFloat(0).SetFloat64(math.Pow(10, float64(denomUnit.Exponent)))
-			availableAmount := big.NewFloat(0).SetInt(balance.AvailableAmount)
-			stakedAmount := big.NewFloat(0).SetInt(balance.StakedAmount)
+
+			availableAmount := big.NewFloat(0).SetInt(bankResponse.Balances[0].Amount.BigInt())
+			stakedAmount := big.NewFloat(0).SetInt(stakingResponse.DelegationResponses[0].Balance.Amount.BigInt())
+
 			totalAmount := big.NewFloat(0).Add(availableAmount, stakedAmount)
 			response.AvailableAmount = availableAmount.Quo(availableAmount, multiplier).String()
 			response.StakedAmount = stakedAmount.Quo(stakedAmount, multiplier).String()

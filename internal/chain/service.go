@@ -4,21 +4,23 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 )
 
 var ErrChainNotFound = errors.New("chain not found")
 
 type Service struct {
-	gasAdjustment     float64
-	repository        Repository
-	connectionFactory ConnectionFactory
+	gasAdjustment float64
+	repository    Repository
+	cosmosClient  *client.Client
 }
 
-func NewService(gasAdjustment float64, repository Repository, connectionFactory ConnectionFactory) *Service {
+func NewService(gasAdjustment float64, repository Repository, cosmosClient *client.Client) *Service {
 	return &Service{
-		gasAdjustment:     gasAdjustment,
-		repository:        repository,
-		connectionFactory: connectionFactory,
+		gasAdjustment: gasAdjustment,
+		repository:    repository,
+		cosmosClient:  cosmosClient,
 	}
 }
 

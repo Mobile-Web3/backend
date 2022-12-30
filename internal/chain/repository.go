@@ -22,4 +22,5 @@ type Repository interface {
 	GetAllPrefixes(ctx context.Context) ([]string, error)
 	GetChainByPrefix(ctx context.Context, prefix string) (Chain, error)
 	UpdateChains(ctx context.Context, chains []Chain) error
+	GetRPCEndpoints(ctx context.Context, chainID string) ([]string, error)
 }
