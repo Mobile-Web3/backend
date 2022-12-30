@@ -46,10 +46,12 @@ func (cr *ChainRegistry) UploadChainInfo(ctx context.Context) error {
 			chainFileName := fmt.Sprintf("%s/%s/chain.json", cr.registryDir, dir.Name())
 			assetFileName := fmt.Sprintf("%s/%s/assetlist.json", cr.registryDir, dir.Name())
 			chainData, readFileErr := cr.readChainFile(chainFileName, assetFileName)
-			if readFileErr != nil {
-				return readFileErr
+			if chainData.Slip44 == 118 || chainData.Slip44 == 60 {
+				if readFileErr != nil {
+					return readFileErr
+				}
+				chains = append(chains, chainData)
 			}
-			chains = append(chains, chainData)
 		}
 	}
 

@@ -15,6 +15,7 @@ import (
 	_ "github.com/Mobile-Web3/backend/docs/api"
 	"github.com/Mobile-Web3/backend/internal/chain"
 	"github.com/Mobile-Web3/backend/internal/cosmos"
+	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 	"github.com/Mobile-Web3/backend/pkg/env"
 	"github.com/gin-gonic/gin"
 	swagger "github.com/swaggo/http-swagger"
@@ -96,8 +97,13 @@ func Run() {
 		return
 	}
 
-	chainClientFactory := cosmos.NewClientFactory(rpcLifetime, errorLogger)
-	chainService := chain.NewService(gasAdjustment, chainRepository, chainClientFactory)
+	cosmosClient, err := client.NewClient("direct", rpcLifetime, chainRepository.GetRPCEndpoints)
+	if err != nil {
+		errorLogger.Println(err)
+		return
+	}
+
+	chainService := chain.NewService(gasAdjustment, chainRepository, cosmosClient)
 	controller := NewController(chainRepository, chainService)
 
 	gin.SetMode("release")

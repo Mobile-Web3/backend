@@ -5,6 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
+
+	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 )
 
 var ErrInvalidChainPair = errors.New("invalid chain pair from to")
@@ -17,6 +24,15 @@ type SendTxInput struct {
 	Memo        string `json:"memo"`
 	GasAdjusted string `json:"gasAdjusted"`
 	GasPrice    string `json:"gasPrice"`
+}
+
+type SendTxResponse struct {
+	Height    int64  `json:"height"`
+	TxHash    string `json:"txHash"`
+	Data      string `json:"data"`
+	GasWanted int64  `json:"gasWanted"`
+	GasUsed   int64  `json:"gasUsed"`
+	RawLog    string `json:"rawLog"`
 }
 
 func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendTxResponse, error) {
@@ -44,22 +60,54 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 		return SendTxResponse{}, err
 	}
 
-	rpcConnection, err := s.connectionFactory.GetRPCConnection(ctx, RPCConfig{
-		ChainID:     fromChain.ID,
-		ChainPrefix: fromChain.Prefix,
-		CoinType:    fromChain.Slip44,
-		Key:         input.Mnemonic,
-		RPC:         fromChain.Api.Rpc,
-	})
+	coins, err := sdk.ParseCoinNormalized(amount)
+	if err != nil {
+		return SendTxResponse{}, err
+	}
 
-	return rpcConnection.SendTransaction(ctx, SendTxData{
-		From:        input.From,
-		To:          input.To,
-		Amount:      amount,
+	msgSend := &bank.MsgSend{
+		FromAddress: input.From,
+		ToAddress:   input.To,
+		Amount:      sdk.Coins{coins},
+	}
+
+	txBytes, err := s.cosmosClient.CreateSignedTransaction(ctx, client.SendTransactionData{
+		ChainID:     fromChain.ID,
 		Memo:        input.Memo,
-		GasPrice:    gasPrice,
 		GasAdjusted: input.GasAdjusted,
+		GasPrice:    gasPrice,
+		CoinType:    fromChain.Slip44,
+		ChainPrefix: toChain.Prefix,
+		Mnemonic:    input.Mnemonic,
+		Message:     msgSend,
 	})
+	if err != nil {
+		return SendTxResponse{}, err
+	}
+
+	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, toChain.ID)
+	if err != nil {
+		return SendTxResponse{}, err
+	}
+
+	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
+	if err != nil {
+		return SendTxResponse{}, err
+	}
+
+	if response.Code != 0 {
+		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s", response.Code, response.Hash.String())
+		return SendTxResponse{}, err
+	}
+
+	return SendTxResponse{
+		Height:    0,
+		TxHash:    response.Hash.String(),
+		Data:      response.Data.String(),
+		GasWanted: 0,
+		GasUsed:   0,
+		RawLog:    response.Log,
+	}, nil
 }
 
 type SimulateTxInput struct {
@@ -97,28 +145,61 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 		return SimulateTxResponse{}, err
 	}
 
-	rpcConnection, err := s.connectionFactory.GetRPCConnection(ctx, RPCConfig{
-		ChainID:     fromChain.ID,
-		ChainPrefix: fromChain.Prefix,
-		CoinType:    fromChain.Slip44,
-		Key:         input.Mnemonic,
-		RPC:         fromChain.Api.Rpc,
+	coins, err := sdk.ParseCoinNormalized(amount)
+	if err != nil {
+		return SimulateTxResponse{}, err
+	}
+
+	msgSend := &bank.MsgSend{
+		FromAddress: input.From,
+		ToAddress:   input.To,
+		Amount:      sdk.Coins{coins},
+	}
+
+	txBytes, err := s.cosmosClient.CreateSimulateTransaction(ctx, client.SimulateTransactionData{
+		ChainID:     toChain.ID,
+		Memo:        input.Memo,
+		CoinType:    toChain.Slip44,
+		ChainPrefix: toChain.Prefix,
+		Mnemonic:    input.Mnemonic,
+		Message:     msgSend,
 	})
 	if err != nil {
 		return SimulateTxResponse{}, err
 	}
 
-	result, err := rpcConnection.SimulateTransaction(ctx, SimulateTxData{
-		From:   input.From,
-		To:     input.To,
-		Memo:   input.Memo,
-		Amount: amount,
-	})
+	simQuery := abci.RequestQuery{
+		Path: "/cosmos.tx.v1beta1.Service/Simulate",
+		Data: txBytes,
+	}
+
+	opts := rpcclient.ABCIQueryOptions{
+		Height: simQuery.Height,
+		Prove:  simQuery.Prove,
+	}
+
+	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, toChain.ID)
 	if err != nil {
 		return SimulateTxResponse{}, err
 	}
 
-	gasAdjusted := math.Round(result.GasUsed * s.gasAdjustment)
+	response, err := rpcClient.ABCIQueryWithOptions(ctx, simQuery.Path, simQuery.Data, opts)
+	if err != nil {
+		return SimulateTxResponse{}, err
+	}
+
+	if response.Response.Code != 0 {
+		return SimulateTxResponse{}, fmt.Errorf("transaction failed with code %d. info: %s",
+			response.Response.Code,
+			response.Response.Info)
+	}
+
+	var result txtypes.SimulateResponse
+	if err = result.Unmarshal(response.Response.Value); err != nil {
+		return SimulateTxResponse{}, err
+	}
+
+	gasAdjusted := math.Round(float64(result.GasInfo.GasUsed) * s.gasAdjustment)
 	_, exponent, err := toChain.GetBaseDenom()
 	if err != nil {
 		return SimulateTxResponse{}, err
