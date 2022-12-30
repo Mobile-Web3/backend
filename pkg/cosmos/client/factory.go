@@ -3,23 +3,52 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	ethhd "github.com/evmos/ethermint/crypto/hd"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 var ErrUnsupportedCoinType = errors.New("unsupported coin type")
 
 func (c *Client) newTxFactory(chainID string, keyBase keyring.Keyring) tx.Factory {
 	return tx.Factory{}.
-		WithAccountRetriever(nil). // TODO acc retriever
 		WithChainID(chainID).
 		WithTxConfig(c.txConfig).
 		WithKeybase(keyBase).
 		WithSignMode(c.signMode)
+}
+
+func (c *Client) getAccount(ctx context.Context, address string, chainID string) (authtypes.AccountI, error) {
+	var header metadata.MD
+
+	grpcConn, err := c.GetGrpcConnection(ctx, chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	queryClient := authtypes.NewQueryClient(grpcConn)
+	res, err := queryClient.Account(context.Background(), &authtypes.QueryAccountRequest{Address: address}, grpc.Header(&header))
+	if err != nil {
+		return nil, err
+	}
+	blockHeight := header.Get(grpctypes.GRPCBlockHeightHeader)
+	if l := len(blockHeight); l != 1 {
+		return nil, fmt.Errorf("unexpected '%s' header length; got %d, expected: %d", grpctypes.GRPCBlockHeightHeader, l, 1)
+	}
+
+	var acc authtypes.AccountI
+	if err = c.interfaceRegistry.UnpackAny(res.Account, &acc); err != nil {
+		return nil, err
+	}
+
+	return acc, nil
 }
 
 func (c *Client) prepareTxFactory(ctx context.Context, chainID string, factory tx.Factory, keyRecord *keyring.Record) (tx.Factory, error) {
@@ -28,28 +57,16 @@ func (c *Client) prepareTxFactory(ctx context.Context, chainID string, factory t
 		return tx.Factory{}, err
 	}
 
-	chainRPC, err := c.GetChainRPC(ctx, chainID)
-	if err != nil {
-		return tx.Factory{}, err
-	}
-
-	clientCtx := client.Context{}.
-		WithClient(chainRPC).
-		WithInterfaceRegistry(c.interfaceRegistry).
-		WithCodec(c.codec)
-
-	if err = factory.AccountRetriever().EnsureExists(clientCtx, address); err != nil {
-		return tx.Factory{}, err
-	}
-
 	accNumber := factory.AccountNumber()
 	accSequence := factory.Sequence()
 
 	if accNumber == 0 || accSequence == 0 {
-		number, sequence, getNumErr := factory.AccountRetriever().GetAccountNumberSequence(clientCtx, address)
-		if getNumErr != nil {
-			return tx.Factory{}, getNumErr
+		accountInfo, accErr := c.getAccount(ctx, address.String(), chainID)
+		if accErr != nil {
+			return tx.Factory{}, accErr
 		}
+
+		number, sequence := accountInfo.GetAccountNumber(), accountInfo.GetSequence()
 
 		if accNumber == 0 {
 			factory = factory.WithAccountNumber(number)
@@ -88,6 +105,9 @@ func (c *Client) createTxFactory(ctx context.Context, chainID string, coinType u
 
 	txf := c.newTxFactory(chainID, keyBase)
 	txf, err = c.prepareTxFactory(ctx, chainID, txf, info)
+	if err != nil {
+		return TxContext{}, err
+	}
 
 	return TxContext{
 		Factory:   txf,
