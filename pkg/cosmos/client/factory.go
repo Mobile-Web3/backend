@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	ethhd "github.com/evmos/ethermint/crypto/hd"
@@ -51,7 +52,7 @@ func (c *Client) getAccount(ctx context.Context, address string, chainID string)
 	return acc, nil
 }
 
-func (c *Client) prepareTxFactory(ctx context.Context, chainID string, factory tx.Factory, keyRecord *keyring.Record) (tx.Factory, error) {
+func (c *Client) prepareTxFactory(ctx context.Context, chainID string, chainPrefix string, factory tx.Factory, keyRecord *keyring.Record) (tx.Factory, error) {
 	address, err := keyRecord.GetAddress()
 	if err != nil {
 		return tx.Factory{}, err
@@ -61,7 +62,12 @@ func (c *Client) prepareTxFactory(ctx context.Context, chainID string, factory t
 	accSequence := factory.Sequence()
 
 	if accNumber == 0 || accSequence == 0 {
-		accountInfo, accErr := c.getAccount(ctx, address.String(), chainID)
+		addr, bechErr := sdk.Bech32ifyAddressBytes(chainPrefix, address)
+		if bechErr != nil {
+			return tx.Factory{}, bechErr
+		}
+
+		accountInfo, accErr := c.getAccount(ctx, addr, chainID)
 		if accErr != nil {
 			return tx.Factory{}, accErr
 		}
@@ -85,7 +91,7 @@ type TxContext struct {
 	KeyRecord *keyring.Record
 }
 
-func (c *Client) createTxFactory(ctx context.Context, chainID string, coinType uint32, mnemonic string) (TxContext, error) {
+func (c *Client) createTxFactory(ctx context.Context, chainID string, chainPrefix string, coinType uint32, mnemonic string) (TxContext, error) {
 	keyBase := keyring.NewInMemory(c.codec)
 	var algo keyring.SignatureAlgo
 
@@ -104,7 +110,7 @@ func (c *Client) createTxFactory(ctx context.Context, chainID string, coinType u
 	}
 
 	txf := c.newTxFactory(chainID, keyBase)
-	txf, err = c.prepareTxFactory(ctx, chainID, txf, info)
+	txf, err = c.prepareTxFactory(ctx, chainID, chainPrefix, txf, info)
 	if err != nil {
 		return TxContext{}, err
 	}

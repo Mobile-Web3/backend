@@ -77,6 +77,7 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 		GasAdjusted: input.GasAdjusted,
 		GasPrice:    gasPrice,
 		CoinType:    fromChain.Slip44,
+		ChainPrefix: toChain.Prefix,
 		Mnemonic:    input.Mnemonic,
 		Message:     msgSend,
 	})
@@ -156,11 +157,12 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 	}
 
 	txBytes, err := s.cosmosClient.CreateSimulateTransaction(ctx, client.SimulateTransactionData{
-		ChainID:  toChain.ID,
-		Memo:     input.Memo,
-		CoinType: toChain.Slip44,
-		Mnemonic: input.Mnemonic,
-		Message:  msgSend,
+		ChainID:     toChain.ID,
+		Memo:        input.Memo,
+		CoinType:    toChain.Slip44,
+		ChainPrefix: toChain.Prefix,
+		Mnemonic:    input.Mnemonic,
+		Message:     msgSend,
 	})
 	if err != nil {
 		return SimulateTxResponse{}, err

@@ -18,13 +18,14 @@ type SendTransactionData struct {
 	Memo        string
 	GasAdjusted string
 	GasPrice    string
+	ChainPrefix string
 	CoinType    uint32
 	Mnemonic    string
 	Message     sdk.Msg
 }
 
 func (c *Client) CreateSignedTransaction(ctx context.Context, input SendTransactionData) ([]byte, error) {
-	txContext, err := c.createTxFactory(ctx, input.ChainID, input.CoinType, input.Mnemonic)
+	txContext, err := c.createTxFactory(ctx, input.ChainID, input.ChainPrefix, input.CoinType, input.Mnemonic)
 	if err != nil {
 		return nil, err
 	}
@@ -62,15 +63,16 @@ type protoTxProvider interface {
 }
 
 type SimulateTransactionData struct {
-	ChainID  string
-	Memo     string
-	CoinType uint32
-	Mnemonic string
-	Message  sdk.Msg
+	ChainID     string
+	Memo        string
+	CoinType    uint32
+	ChainPrefix string
+	Mnemonic    string
+	Message     sdk.Msg
 }
 
 func (c *Client) CreateSimulateTransaction(ctx context.Context, input SimulateTransactionData) ([]byte, error) {
-	txContext, err := c.createTxFactory(ctx, input.ChainID, input.CoinType, input.Mnemonic)
+	txContext, err := c.createTxFactory(ctx, input.ChainID, input.ChainPrefix, input.CoinType, input.Mnemonic)
 	if err != nil {
 		return nil, err
 	}
