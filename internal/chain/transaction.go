@@ -189,7 +189,9 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 	}
 
 	if response.Response.Code != 0 {
-
+		return SimulateTxResponse{}, fmt.Errorf("transaction failed with code %d. info: %s",
+			response.Response.Code,
+			response.Response.Info)
 	}
 
 	var result txtypes.SimulateResponse
