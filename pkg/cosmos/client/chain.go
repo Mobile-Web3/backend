@@ -1,4 +1,4 @@
-package chain
+package client
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 var errNoAvailableRPC = errors.New("no available rpc")
 
-type State struct {
+type chainState struct {
 	chainID          string
 	mutex            sync.RWMutex
 	rpc              []string
@@ -23,8 +23,8 @@ type State struct {
 	rpcTimer         *time.Timer
 }
 
-func NewState(chainID string, lifetime time.Duration, rpc []string) *State {
-	state := &State{
+func newChainState(chainID string, lifetime time.Duration, rpc []string) *chainState {
+	state := &chainState{
 		chainID:     chainID,
 		mutex:       sync.RWMutex{},
 		rpc:         rpc,
@@ -36,7 +36,7 @@ func NewState(chainID string, lifetime time.Duration, rpc []string) *State {
 	return state
 }
 
-func (s *State) GetActiveRPC(ctx context.Context) (*http.HTTP, error) {
+func (s *chainState) GetActiveRPC(ctx context.Context) (*http.HTTP, error) {
 	s.mutex.RLock()
 	if s.isConnectionInit {
 		s.mutex.RUnlock()
@@ -47,7 +47,7 @@ func (s *State) GetActiveRPC(ctx context.Context) (*http.HTTP, error) {
 	return s.initHealthRPC(ctx)
 }
 
-func (s *State) invalidateRPC() {
+func (s *chainState) invalidateRPC() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.isConnectionInit = false
@@ -64,7 +64,7 @@ func (s *endpointStorage) addEndpoint(endpoint string) {
 	s.mutex.Unlock()
 }
 
-func (s *State) initHealthRPC(ctx context.Context) (*http.HTTP, error) {
+func (s *chainState) initHealthRPC(ctx context.Context) (*http.HTTP, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

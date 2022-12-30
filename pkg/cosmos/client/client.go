@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Mobile-Web3/backend/pkg/cosmos/chain"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
@@ -25,7 +24,7 @@ type Client struct {
 
 	rpcLifetime time.Duration
 	chainMutex  sync.RWMutex
-	chains      map[string]*chain.State
+	chains      map[string]*chainState
 
 	keyName  string
 	signMode signing.SignMode
@@ -54,7 +53,7 @@ func NewClient(signMode string, rpcLifetime time.Duration, getRPCEndpointHandler
 
 		rpcLifetime: rpcLifetime,
 		chainMutex:  sync.RWMutex{},
-		chains:      make(map[string]*chain.State),
+		chains:      make(map[string]*chainState),
 		keyName:     "source_key",
 		signMode:    mode,
 

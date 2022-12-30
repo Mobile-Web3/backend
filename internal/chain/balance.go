@@ -5,10 +5,8 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"google.golang.org/grpc"
 )
 
 type CheckResponse struct {
@@ -23,9 +21,7 @@ func (s *Service) CheckBalance(ctx context.Context, walletAddress string) (Check
 		return CheckResponse{}, err
 	}
 
-	connection, err := grpc.Dial("grpc-cosmoshub.blockapsis.com:9090",
-		grpc.WithInsecure(),
-		grpc.WithDefaultCallOptions(grpc.ForceCodec(codec.NewProtoCodec(nil).GRPCCodec())))
+	connection, err := s.cosmosClient.GetGrpcConnection(ctx, chain.ID)
 	if err != nil {
 		return CheckResponse{}, err
 	}
@@ -51,8 +47,15 @@ func (s *Service) CheckBalance(ctx context.Context, walletAddress string) (Check
 		if denomUnit.Denom == chain.Asset.Display {
 			multiplier := big.NewFloat(0).SetFloat64(math.Pow(10, float64(denomUnit.Exponent)))
 
-			availableAmount := big.NewFloat(0).SetInt(bankResponse.Balances[0].Amount.BigInt())
-			stakedAmount := big.NewFloat(0).SetInt(stakingResponse.DelegationResponses[0].Balance.Amount.BigInt())
+			availableAmount := big.NewFloat(0)
+			if len(bankResponse.Balances) > 0 {
+				availableAmount = availableAmount.SetInt(bankResponse.Balances[0].Amount.BigInt())
+			}
+
+			stakedAmount := big.NewFloat(0)
+			if len(stakingResponse.DelegationResponses) > 0 {
+				stakedAmount = stakedAmount.SetInt(stakingResponse.DelegationResponses[0].Balance.Amount.BigInt())
+			}
 
 			totalAmount := big.NewFloat(0).Add(availableAmount, stakedAmount)
 			response.AvailableAmount = availableAmount.Quo(availableAmount, multiplier).String()

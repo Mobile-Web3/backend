@@ -7,6 +7,7 @@ require (
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/evmos/ethermint v0.6.1-0.20220810122651-42abb259cbed
 	github.com/gin-gonic/gin v1.8.1
+	github.com/gogo/protobuf v1.3.3
 	github.com/swaggo/http-swagger v1.3.3
 	github.com/swaggo/swag v1.8.8
 	github.com/tendermint/tendermint v0.34.23
@@ -69,7 +70,6 @@ require (
 	github.com/go-playground/validator/v10 v10.11.1 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
-	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
