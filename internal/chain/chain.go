@@ -97,6 +97,10 @@ func (c *Chain) FromDisplayToBase(amount string) (string, error) {
 		return "", err
 	}
 
+	if amount == "0" {
+		return amount + denom, nil
+	}
+
 	var sb strings.Builder
 	if !strings.Contains(amount, ".") {
 		sb.WriteString(amount)
