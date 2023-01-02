@@ -35,7 +35,7 @@ func (c *Client) getAccount(ctx context.Context, address string, chainID string)
 	}
 
 	queryClient := authtypes.NewQueryClient(grpcConn)
-	res, err := queryClient.Account(context.Background(), &authtypes.QueryAccountRequest{Address: address}, grpc.Header(&header))
+	res, err := queryClient.Account(ctx, &authtypes.QueryAccountRequest{Address: address}, grpc.Header(&header))
 	if err != nil {
 		return nil, err
 	}
