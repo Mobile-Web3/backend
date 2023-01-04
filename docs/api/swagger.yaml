@@ -32,9 +32,9 @@ definitions:
         type: string
       gasPrice:
         type: string
-      memo:
+      key:
         type: string
-      mnemonic:
+      memo:
         type: string
       to:
         type: string
@@ -79,9 +79,9 @@ definitions:
         type: string
       from:
         type: string
-      memo:
+      key:
         type: string
-      mnemonic:
+      memo:
         type: string
       to:
         type: string

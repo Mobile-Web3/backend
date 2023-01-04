@@ -239,10 +239,10 @@ const docTemplate = `{
                 "gasPrice": {
                     "type": "string"
                 },
-                "memo": {
+                "key": {
                     "type": "string"
                 },
-                "mnemonic": {
+                "memo": {
                     "type": "string"
                 },
                 "to": {
@@ -311,10 +311,10 @@ const docTemplate = `{
                 "from": {
                     "type": "string"
                 },
-                "memo": {
+                "key": {
                     "type": "string"
                 },
-                "mnemonic": {
+                "memo": {
                     "type": "string"
                 },
                 "to": {

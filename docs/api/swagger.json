@@ -231,10 +231,10 @@
                 "gasPrice": {
                     "type": "string"
                 },
-                "memo": {
+                "key": {
                     "type": "string"
                 },
-                "mnemonic": {
+                "memo": {
                     "type": "string"
                 },
                 "to": {
@@ -303,10 +303,10 @@
                 "from": {
                     "type": "string"
                 },
-                "memo": {
+                "key": {
                     "type": "string"
                 },
-                "mnemonic": {
+                "memo": {
                     "type": "string"
                 },
                 "to": {
