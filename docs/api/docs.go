@@ -16,6 +16,141 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/account/create": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Получение аккаунта по мнемонику",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chain.CreateAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/chain.AccountResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/account/mnemonic": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Создание мнемоника",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.createMnemonicInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/account/restore": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Получение аккаунта по ключу",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chain.RestoreAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/chain.AccountResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/balance/check": {
             "post": {
                 "consumes": [
@@ -210,6 +345,28 @@ const docTemplate = `{
                 }
             }
         },
+        "api.createMnemonicInput": {
+            "type": "object",
+            "properties": {
+                "mnemonicSize": {
+                    "type": "integer"
+                }
+            }
+        },
+        "chain.AccountResponse": {
+            "type": "object",
+            "properties": {
+                "addresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
         "chain.CheckResponse": {
             "type": "object",
             "properties": {
@@ -220,6 +377,43 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "totalAmount": {
+                    "type": "string"
+                }
+            }
+        },
+        "chain.CreateAccountInput": {
+            "type": "object",
+            "properties": {
+                "accountPath": {
+                    "type": "integer"
+                },
+                "chainPrefixes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "coinType": {
+                    "type": "integer"
+                },
+                "indexPath": {
+                    "type": "integer"
+                },
+                "mnemonic": {
+                    "type": "string"
+                }
+            }
+        },
+        "chain.RestoreAccountInput": {
+            "type": "object",
+            "properties": {
+                "chainPrefixes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "key": {
                     "type": "string"
                 }
             }
