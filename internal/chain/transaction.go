@@ -20,7 +20,7 @@ type SendTxInput struct {
 	From        string `json:"from"`
 	To          string `json:"to"`
 	Amount      string `json:"amount"`
-	Mnemonic    string `json:"mnemonic"`
+	Key         string `json:"key"`
 	Memo        string `json:"memo"`
 	GasAdjusted string `json:"gasAdjusted"`
 	GasPrice    string `json:"gasPrice"`
@@ -71,9 +71,8 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 		Memo:        input.Memo,
 		GasAdjusted: input.GasAdjusted,
 		GasPrice:    gasPrice,
-		CoinType:    fromChain.Slip44,
 		ChainPrefix: toChain.Prefix,
-		Mnemonic:    input.Mnemonic,
+		Key:         input.Key,
 		Message:     msgSend,
 	})
 	if err != nil {
@@ -101,11 +100,11 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 }
 
 type SimulateTxInput struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Amount   string `json:"amount"`
-	Mnemonic string `json:"mnemonic"`
-	Memo     string `json:"memo"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Amount string `json:"amount"`
+	Key    string `json:"key"`
+	Memo   string `json:"memo"`
 }
 
 type SimulateTxResponse struct {
@@ -149,9 +148,8 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 	txBytes, err := s.cosmosClient.CreateSimulateTransaction(ctx, client.SimulateTransactionData{
 		ChainID:     toChain.ID,
 		Memo:        input.Memo,
-		CoinType:    toChain.Slip44,
 		ChainPrefix: toChain.Prefix,
-		Mnemonic:    input.Mnemonic,
+		Key:         input.Key,
 		Message:     msgSend,
 	})
 	if err != nil {

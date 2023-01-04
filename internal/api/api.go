@@ -104,7 +104,7 @@ func Run() {
 	}
 
 	chainService := chain.NewService(gasAdjustment, chainRepository, cosmosClient)
-	controller := NewController(chainRepository, chainService)
+	controller := NewController(chainRepository, chainService, cosmosClient)
 
 	gin.SetMode("release")
 	router := gin.New()
@@ -122,6 +122,9 @@ func Run() {
 		api.POST("/transaction/send", controller.SendTransaction)
 		api.POST("/transaction/simulate", controller.SimulateTransaction)
 		api.POST("/chains/all", controller.GetAllChains)
+		api.POST("/account/mnemonic", controller.CreateMnemonic)
+		api.POST("/account/create", controller.CreateAccount)
+		api.POST("/account/restore", controller.RestoreAccount)
 	}
 
 	port := os.Getenv("PORT")

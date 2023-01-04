@@ -6,23 +6,19 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/tx"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/crypto/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	ethhd "github.com/evmos/ethermint/crypto/hd"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 var ErrUnsupportedCoinType = errors.New("unsupported coin type")
 
-func (c *Client) newTxFactory(chainID string, keyBase keyring.Keyring) tx.Factory {
+func (c *Client) newTxFactory(chainID string) tx.Factory {
 	return tx.Factory{}.
 		WithChainID(chainID).
 		WithTxConfig(c.txConfig).
-		WithKeybase(keyBase).
 		WithSignMode(c.signMode)
 }
 
@@ -52,17 +48,12 @@ func (c *Client) getAccount(ctx context.Context, address string, chainID string)
 	return acc, nil
 }
 
-func (c *Client) prepareTxFactory(ctx context.Context, chainID string, chainPrefix string, factory tx.Factory, keyRecord *keyring.Record) (tx.Factory, error) {
-	address, err := keyRecord.GetAddress()
-	if err != nil {
-		return tx.Factory{}, err
-	}
-
+func (c *Client) prepareTxFactory(ctx context.Context, chainID string, chainPrefix string, factory tx.Factory, address types.Address) (tx.Factory, error) {
 	accNumber := factory.AccountNumber()
 	accSequence := factory.Sequence()
 
 	if accNumber == 0 || accSequence == 0 {
-		addr, bechErr := sdk.Bech32ifyAddressBytes(chainPrefix, address)
+		addr, bechErr := c.ConvertAddressPrefix(chainPrefix, address)
 		if bechErr != nil {
 			return tx.Factory{}, bechErr
 		}
@@ -87,36 +78,24 @@ func (c *Client) prepareTxFactory(ctx context.Context, chainID string, chainPref
 }
 
 type TxContext struct {
-	Factory   tx.Factory
-	KeyRecord *keyring.Record
+	Factory    tx.Factory
+	PrivateKey types.PrivKey
 }
 
-func (c *Client) createTxFactory(ctx context.Context, chainID string, chainPrefix string, coinType uint32, mnemonic string) (TxContext, error) {
-	keyBase := keyring.NewInMemory(c.codec)
-	var algo keyring.SignatureAlgo
-
-	switch coinType {
-	case 118:
-		algo = keyring.SignatureAlgo(hd.Secp256k1)
-	case 60:
-		algo = keyring.SignatureAlgo(ethhd.EthSecp256k1)
-	default:
-		return TxContext{}, ErrUnsupportedCoinType
-	}
-
-	info, err := keyBase.NewAccount(c.keyName, mnemonic, "", hd.CreateHDPath(coinType, 0, 0).String(), algo)
+func (c *Client) createTxFactory(ctx context.Context, chainID string, chainPrefix string, key string) (TxContext, error) {
+	privateKey, err := c.CreateAccountFromHexKey(key)
 	if err != nil {
 		return TxContext{}, err
 	}
 
-	txf := c.newTxFactory(chainID, keyBase)
-	txf, err = c.prepareTxFactory(ctx, chainID, chainPrefix, txf, info)
+	txf := c.newTxFactory(chainID)
+	txf, err = c.prepareTxFactory(ctx, chainID, chainPrefix, txf, privateKey.PubKey().Address())
 	if err != nil {
 		return TxContext{}, err
 	}
 
 	return TxContext{
-		Factory:   txf,
-		KeyRecord: info,
+		Factory:    txf,
+		PrivateKey: privateKey,
 	}, nil
 }

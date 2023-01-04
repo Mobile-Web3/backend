@@ -13,6 +13,20 @@ definitions:
       walletAddress:
         type: string
     type: object
+  api.createMnemonicInput:
+    properties:
+      mnemonicSize:
+        type: integer
+    type: object
+  chain.AccountResponse:
+    properties:
+      addresses:
+        items:
+          type: string
+        type: array
+      key:
+        type: string
+    type: object
   chain.CheckResponse:
     properties:
       availableAmount:
@@ -20,6 +34,30 @@ definitions:
       stakedAmount:
         type: string
       totalAmount:
+        type: string
+    type: object
+  chain.CreateAccountInput:
+    properties:
+      accountPath:
+        type: integer
+      chainPrefixes:
+        items:
+          type: string
+        type: array
+      coinType:
+        type: integer
+      indexPath:
+        type: integer
+      mnemonic:
+        type: string
+    type: object
+  chain.RestoreAccountInput:
+    properties:
+      chainPrefixes:
+        items:
+          type: string
+        type: array
+      key:
         type: string
     type: object
   chain.SendTxInput:
@@ -32,9 +70,9 @@ definitions:
         type: string
       gasPrice:
         type: string
-      memo:
+      key:
         type: string
-      mnemonic:
+      memo:
         type: string
       to:
         type: string
@@ -79,9 +117,9 @@ definitions:
         type: string
       from:
         type: string
-      memo:
+      key:
         type: string
-      mnemonic:
+      memo:
         type: string
       to:
         type: string
@@ -103,6 +141,84 @@ info:
   title: Swagger UI
   version: "1.0"
 paths:
+  /account/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/chain.CreateAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/chain.AccountResponse'
+              type: object
+      summary: Получение аккаунта по мнемонику
+      tags:
+      - account
+  /account/mnemonic:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.createMnemonicInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.Response'
+            - properties:
+                result:
+                  type: string
+              type: object
+      summary: Создание мнемоника
+      tags:
+      - account
+  /account/restore:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/chain.RestoreAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/chain.AccountResponse'
+              type: object
+      summary: Получение аккаунта по ключу
+      tags:
+      - account
   /balance/check:
     post:
       consumes:
