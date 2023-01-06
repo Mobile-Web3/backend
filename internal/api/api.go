@@ -6,13 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	_ "github.com/Mobile-Web3/backend/docs/api"
-	"github.com/Mobile-Web3/backend/internal/chain"
 	"github.com/Mobile-Web3/backend/internal/cosmos"
+	"github.com/Mobile-Web3/backend/internal/domain/account"
+	"github.com/Mobile-Web3/backend/internal/domain/transaction"
 	httphandler "github.com/Mobile-Web3/backend/internal/handler/http"
 	"github.com/Mobile-Web3/backend/internal/server/http"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
@@ -34,8 +34,8 @@ func Run() {
 		return
 	}
 
-	url := os.Getenv("CHAIN_REGISTRY_URL")
-	if url == "" {
+	registryURL := os.Getenv("CHAIN_REGISTRY_URL")
+	if registryURL == "" {
 		errorLogger.Println("empty CHAIN_REGISTRY_URL env")
 		return
 	}
@@ -43,21 +43,6 @@ func Run() {
 	registryDir := os.Getenv("REGISTRY_DIR")
 	if registryDir == "" {
 		errorLogger.Println("empty REGISTRY_DIR env")
-		return
-	}
-
-	_, _, ok := strings.Cut(url, "http://")
-	if !ok {
-		_, _, ok = strings.Cut(url, "https://")
-		if !ok {
-			errorLogger.Println("invalid git url")
-			return
-		}
-	}
-
-	_, _, ok = strings.Cut(url, ".git")
-	if !ok {
-		errorLogger.Println("invalid git url")
 		return
 	}
 
@@ -73,7 +58,7 @@ func Run() {
 	}
 
 	chainRepository := cosmos.NewChainRepository()
-	chainRegistry, err := cosmos.NewChainRegistry(url, registryDir, chainRepository)
+	chainRegistry, err := cosmos.NewChainRegistry(registryURL, registryDir, chainRepository)
 	if err != nil {
 		errorLogger.Println(err)
 		return
@@ -101,8 +86,9 @@ func Run() {
 		return
 	}
 
-	chainService := chain.NewService(gasAdjustment, chainRepository, cosmosClient)
-	handler := httphandler.New(chainRepository, chainService)
+	accounts := account.NewService(chainRepository, cosmosClient)
+	transactions := transaction.NewService(gasAdjustment, chainRepository, cosmosClient)
+	handler := httphandler.New(chainRepository, accounts, transactions)
 
 	port := os.Getenv("PORT")
 	if port == "" {

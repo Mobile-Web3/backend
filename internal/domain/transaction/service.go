@@ -1,11 +1,11 @@
-package chain
+package transaction
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 
+	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -14,9 +14,22 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 )
 
-var ErrInvalidChainPair = errors.New("invalid chain pair from to")
+type Service struct {
+	gasAdjustment   float64
+	chainRepository chain.Repository
+	cosmosClient    *client.Client
+}
 
-type SendTxInput struct {
+func NewService(gasAdjustment float64, chainRepository chain.Repository, cosmosClient *client.Client) *Service {
+	return &Service{
+		gasAdjustment:   gasAdjustment,
+		chainRepository: chainRepository,
+		cosmosClient:    cosmosClient,
+	}
+}
+
+type SendInput struct {
+	ChainID     string `json:"chainId"`
 	From        string `json:"from"`
 	To          string `json:"to"`
 	Amount      string `json:"amount"`
@@ -26,38 +39,29 @@ type SendTxInput struct {
 	GasPrice    string `json:"gasPrice"`
 }
 
-type SendTxResponse struct {
+type SendResponse struct {
 	TxHash string `json:"txHash"`
 }
 
-func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendTxResponse, error) {
-	fromChain, err := s.getChainByWallet(ctx, input.From)
+func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendResponse, error) {
+	fromChain, err := s.chainRepository.GetByID(ctx, input.ChainID)
 	if err != nil {
-		return SendTxResponse{}, err
-	}
-
-	toChain, err := s.getChainByWallet(ctx, input.To)
-	if err != nil {
-		return SendTxResponse{}, err
-	}
-
-	if fromChain.ID != toChain.ID {
-		return SendTxResponse{}, ErrInvalidChainPair
+		return SendResponse{}, err
 	}
 
 	amount, err := fromChain.FromDisplayToBase(input.Amount)
 	if err != nil {
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
 	gasPrice, err := fromChain.FromDisplayToBase(input.GasPrice)
 	if err != nil {
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
 	coins, err := sdk.ParseCoinNormalized(amount)
 	if err != nil {
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
 	msgSend := &bank.MsgSend{
@@ -76,67 +80,59 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 		Message:     msgSend,
 	})
 	if err != nil {
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
-	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, toChain.ID)
+	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
 	if err != nil {
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
 	if response.Code != 0 {
 		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s", response.Code, response.Hash.String())
-		return SendTxResponse{}, err
+		return SendResponse{}, err
 	}
 
-	return SendTxResponse{
+	return SendResponse{
 		TxHash: response.Hash.String(),
 	}, nil
 }
 
-type SimulateTxInput struct {
-	From   string `json:"from"`
-	To     string `json:"to"`
-	Amount string `json:"amount"`
-	Key    string `json:"key"`
-	Memo   string `json:"memo"`
+type SimulateInput struct {
+	ChainID string `json:"chainId"`
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Amount  string `json:"amount"`
+	Key     string `json:"key"`
+	Memo    string `json:"memo"`
 }
 
-type SimulateTxResponse struct {
+type SimulateResponse struct {
 	GasAdjusted     string `json:"gasAdjusted"`
 	LowGasPrice     string `json:"lowGasPrice"`
 	AverageGasPrice string `json:"averageGasPrice"`
 	HighGasPrice    string `json:"highGasPrice"`
 }
 
-func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput) (SimulateTxResponse, error) {
-	fromChain, err := s.getChainByWallet(ctx, input.From)
+func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) (SimulateResponse, error) {
+	fromChain, err := s.chainRepository.GetByID(ctx, input.ChainID)
 	if err != nil {
-		return SimulateTxResponse{}, err
-	}
-
-	toChain, err := s.getChainByWallet(ctx, input.To)
-	if err != nil {
-		return SimulateTxResponse{}, err
-	}
-
-	if fromChain.ID != toChain.ID {
-		return SimulateTxResponse{}, ErrInvalidChainPair
+		return SimulateResponse{}, err
 	}
 
 	amount, err := fromChain.FromDisplayToBase(input.Amount)
 	if err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	coins, err := sdk.ParseCoinNormalized(amount)
 	if err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	msgSend := &bank.MsgSend{
@@ -153,7 +149,7 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 		Message:     msgSend,
 	})
 	if err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	simQuery := abci.RequestQuery{
@@ -168,29 +164,29 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 
 	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
 	if err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	response, err := rpcClient.ABCIQueryWithOptions(ctx, simQuery.Path, simQuery.Data, opts)
 	if err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	if response.Response.Code != 0 {
-		return SimulateTxResponse{}, fmt.Errorf("transaction failed with code %d. log: %s",
+		return SimulateResponse{}, fmt.Errorf("transaction failed with code %d. log: %s",
 			response.Response.Code,
 			response.Response.Log)
 	}
 
 	var result txtypes.SimulateResponse
 	if err = result.Unmarshal(response.Response.Value); err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	gasAdjusted := math.Round(float64(result.GasInfo.GasUsed) * s.gasAdjustment)
 	_, exponent, err := fromChain.GetBaseDenom()
 	if err != nil {
-		return SimulateTxResponse{}, err
+		return SimulateResponse{}, err
 	}
 
 	divider := math.Pow(10, float64(exponent))
@@ -198,7 +194,7 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 	averageGasPrice := math.Round(gasAdjusted*fromChain.AverageGasPrice) / divider
 	highGasPrice := math.Round(gasAdjusted*fromChain.HighGasPrice) / divider
 
-	return SimulateTxResponse{
+	return SimulateResponse{
 		GasAdjusted:     fmt.Sprintf("%.0f", gasAdjusted),
 		LowGasPrice:     fmt.Sprintf("%f", lowGasPrice),
 		AverageGasPrice: fmt.Sprintf("%f", averageGasPrice),

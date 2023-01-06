@@ -6,7 +6,7 @@ package http
 // @Accept       json
 // @Produce      json
 // @Content-Type application/json
-// @param        request body chain.CreateMnemonicInput true "body"
+// @param        request body account.CreateMnemonicInput true "body"
 // @Success      200 {object} apiResponse{result=string}
 // @Router       /account/mnemonic [post]
 func CreateMnemonic() {}
@@ -17,8 +17,8 @@ func CreateMnemonic() {}
 // @Accept       json
 // @Produce      json
 // @Content-Type application/json
-// @param        request body chain.CreateAccountInput true "body"
-// @Success      200 {object} apiResponse{result=chain.AccountResponse}
+// @param        request body account.CreateAccountInput true "body"
+// @Success      200 {object} apiResponse{result=account.KeyResponse}
 // @Router       /account/create [post]
 func CreateAccount() {}
 
@@ -28,8 +28,8 @@ func CreateAccount() {}
 // @Accept       json
 // @Produce      json
 // @Content-Type application/json
-// @param        request body chain.RestoreAccountInput true "body"
-// @Success      200 {object} apiResponse{result=chain.AccountResponse}
+// @param        request body account.RestoreAccountInput true "body"
+// @Success      200 {object} apiResponse{result=account.KeyResponse}
 // @Router       /account/restore [post]
 func RestoreAccount() {}
 
@@ -39,8 +39,8 @@ func RestoreAccount() {}
 // @Accept       json
 // @Produce      json
 // @Content-Type application/json
-// @param        request body chain.BalanceInput true "body"
-// @Success      200 {object} apiResponse{result=chain.BalanceResponse}
+// @param        request body account.BalanceInput true "body"
+// @Success      200 {object} apiResponse{result=account.BalanceResponse}
 // @Router       /account/balance [post]
 func CheckBalance() {}
 
@@ -60,8 +60,8 @@ func GetAllChains() {}
 // @Accept       json
 // @Produce      json
 // @Content-Type application/json
-// @param        request body chain.SendTxInput true "body"
-// @Success      200 {object} apiResponse{result=chain.SendTxResponse}
+// @param        request body transaction.SendInput true "body"
+// @Success      200 {object} apiResponse{result=transaction.SendResponse}
 // @Router       /transaction/send [post]
 func SendTransaction() {}
 
@@ -71,7 +71,7 @@ func SendTransaction() {}
 // @Accept       json
 // @Produce      json
 // @Content-Type application/json
-// @param        request body chain.SimulateTxInput true "body"
-// @Success      200 {object} apiResponse{result=chain.SimulateTxResponse}
+// @param        request body transaction.SimulateInput true "body"
+// @Success      200 {object} apiResponse{result=transaction.SimulateResponse}
 // @Router       /transaction/simulate [post]
 func SimulateTransaction() {}

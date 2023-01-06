@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Mobile-Web3/backend/internal/chain"
+	"github.com/Mobile-Web3/backend/internal/domain/chain"
 )
 
 var excludingDirs = []string{".git", ".github", "_IBC", "_non-cosmos", "testnets", "thorchain"}

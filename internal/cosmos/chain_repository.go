@@ -5,13 +5,12 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/Mobile-Web3/backend/internal/chain"
+	"github.com/Mobile-Web3/backend/internal/domain/chain"
 )
 
 var ErrChainNotFound = errors.New("chain not found")
 
 type ChainRepository struct {
-	prefixes  []string
 	chains    map[string]chain.Chain
 	responses []chain.ShortResponse
 	mutex     sync.RWMutex
@@ -27,14 +26,11 @@ func (r *ChainRepository) GetAllChains(ctx context.Context) ([]chain.ShortRespon
 	return r.responses, nil
 }
 
-func (r *ChainRepository) GetAllPrefixes(ctx context.Context) ([]string, error) {
-	return r.prefixes, nil
-}
-
-func (r *ChainRepository) GetChainByPrefix(ctx context.Context, prefix string) (chain.Chain, error) {
+func (r *ChainRepository) GetByID(ctx context.Context, chainID string) (chain.Chain, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	chainData, ok := r.chains[prefix]
+
+	chainData, ok := r.chains[chainID]
 	if !ok {
 		return chain.Chain{}, ErrChainNotFound
 	}
@@ -49,7 +45,7 @@ func (r *ChainRepository) UpdateChains(ctx context.Context, chains []chain.Chain
 
 	for _, chainData := range chains {
 		prefixes = append(prefixes, chainData.Prefix)
-		chainsMap[chainData.Prefix] = chainData
+		chainsMap[chainData.ID] = chainData
 		responses = append(responses, chain.ShortResponse{
 			ID:          chainData.ID,
 			Name:        chainData.Name,
@@ -69,7 +65,6 @@ func (r *ChainRepository) UpdateChains(ctx context.Context, chains []chain.Chain
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.chains = chainsMap
-	r.prefixes = prefixes
 	r.responses = responses
 	return nil
 }
@@ -78,17 +73,8 @@ func (r *ChainRepository) GetRPCEndpoints(ctx context.Context, chainID string) (
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	var chainData chain.Chain
-	isFound := false
-	for _, item := range r.chains {
-		if item.ID == chainID {
-			chainData = item
-			isFound = true
-			break
-		}
-	}
-
-	if !isFound {
+	chainData, ok := r.chains[chainID]
+	if !ok {
 		return nil, ErrChainNotFound
 	}
 

@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	_ "github.com/Mobile-Web3/backend/docs/api"
-	"github.com/Mobile-Web3/backend/internal/chain"
+	"github.com/Mobile-Web3/backend/internal/domain/account"
+	"github.com/Mobile-Web3/backend/internal/domain/chain"
+	"github.com/Mobile-Web3/backend/internal/domain/transaction"
 	"github.com/gin-gonic/gin"
 	swagger "github.com/swaggo/http-swagger"
 )
@@ -44,7 +46,7 @@ func newEmptyHandler[TResponse any](handler emptyHandler[TResponse]) func(contex
 	}
 }
 
-func New(repository chain.Repository, service *chain.Service) http.Handler {
+func New(chainRepository chain.Repository, accountService *account.Service, transactionService *transaction.Service) http.Handler {
 	gin.SetMode("release")
 	router := gin.New()
 
@@ -57,23 +59,23 @@ func New(repository chain.Repository, service *chain.Service) http.Handler {
 
 	api := router.Group("/api")
 	{
-		account := api.Group("account")
+		accounts := api.Group("account")
 		{
-			account.POST("mnemonic", newRequestHandler(service.CreateMnemonic))
-			account.POST("create", newRequestHandler(service.CreateAccount))
-			account.POST("restore", newRequestHandler(service.RestoreAccount))
-			account.POST("balance", newRequestHandler(service.CheckBalance))
+			accounts.POST("mnemonic", newRequestHandler(accountService.CreateMnemonic))
+			accounts.POST("create", newRequestHandler(accountService.CreateAccount))
+			accounts.POST("restore", newRequestHandler(accountService.RestoreAccount))
+			accounts.POST("balance", newRequestHandler(accountService.CheckBalance))
 		}
 
 		chains := api.Group("chains")
 		{
-			chains.POST("all", newEmptyHandler(repository.GetAllChains))
+			chains.POST("all", newEmptyHandler(chainRepository.GetAllChains))
 		}
 
-		transaction := api.Group("transaction")
+		transactions := api.Group("transaction")
 		{
-			transaction.POST("send", newRequestHandler(service.SendTransaction))
-			transaction.POST("simulate", newRequestHandler(service.SimulateTransaction))
+			transactions.POST("send", newRequestHandler(transactionService.SendTransaction))
+			transactions.POST("simulate", newRequestHandler(transactionService.SimulateTransaction))
 		}
 	}
 

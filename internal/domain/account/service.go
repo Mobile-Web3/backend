@@ -1,4 +1,4 @@
-package chain
+package account
 
 import (
 	"context"
@@ -6,10 +6,24 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/Mobile-Web3/backend/internal/domain/chain"
+	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
+
+type Service struct {
+	chainRepository chain.Repository
+	cosmosClient    *client.Client
+}
+
+func NewService(chainRepository chain.Repository, cosmosClient *client.Client) *Service {
+	return &Service{
+		chainRepository: chainRepository,
+		cosmosClient:    cosmosClient,
+	}
+}
 
 type CreateMnemonicInput struct {
 	MnemonicSize uint8 `json:"mnemonicSize"`
@@ -19,7 +33,7 @@ func (s *Service) CreateMnemonic(ctx context.Context, input CreateMnemonicInput)
 	return s.cosmosClient.CreateMnemonic(input.MnemonicSize)
 }
 
-type AccountResponse struct {
+type KeyResponse struct {
 	Key       string   `json:"key"`
 	Addresses []string `json:"addresses"`
 }
@@ -47,18 +61,18 @@ type CreateAccountInput struct {
 	ChainPrefixes []string `json:"chainPrefixes"`
 }
 
-func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (AccountResponse, error) {
+func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (KeyResponse, error) {
 	privateKey, err := s.cosmosClient.CreateAccountFromMnemonic(input.Mnemonic, "", input.CoinType, input.AccountPath, input.IndexPath)
 	if err != nil {
-		return AccountResponse{}, err
+		return KeyResponse{}, err
 	}
 
 	addresses, err := s.getAddresses(privateKey, input.ChainPrefixes)
 	if err != nil {
-		return AccountResponse{}, err
+		return KeyResponse{}, err
 	}
 
-	return AccountResponse{
+	return KeyResponse{
 		Key:       hex.EncodeToString(privateKey.Bytes()),
 		Addresses: addresses,
 	}, nil
@@ -69,24 +83,25 @@ type RestoreAccountInput struct {
 	ChainPrefixes []string `json:"chainPrefixes"`
 }
 
-func (s *Service) RestoreAccount(ctx context.Context, input RestoreAccountInput) (AccountResponse, error) {
+func (s *Service) RestoreAccount(ctx context.Context, input RestoreAccountInput) (KeyResponse, error) {
 	privateKey, err := s.cosmosClient.CreateAccountFromHexKey(input.Key)
 	if err != nil {
-		return AccountResponse{}, err
+		return KeyResponse{}, err
 	}
 
 	addresses, err := s.getAddresses(privateKey, input.ChainPrefixes)
 	if err != nil {
-		return AccountResponse{}, err
+		return KeyResponse{}, err
 	}
 
-	return AccountResponse{
+	return KeyResponse{
 		Key:       hex.EncodeToString(privateKey.Bytes()),
 		Addresses: addresses,
 	}, nil
 }
 
 type BalanceInput struct {
+	ChainID string `json:"chainId"`
 	Address string `json:"address"`
 }
 
@@ -97,12 +112,12 @@ type BalanceResponse struct {
 }
 
 func (s *Service) CheckBalance(ctx context.Context, input BalanceInput) (BalanceResponse, error) {
-	chain, err := s.getChainByWallet(ctx, input.Address)
+	chainInfo, err := s.chainRepository.GetByID(ctx, input.ChainID)
 	if err != nil {
 		return BalanceResponse{}, err
 	}
 
-	connection, err := s.cosmosClient.GetGrpcConnection(ctx, chain.ID)
+	connection, err := s.cosmosClient.GetGrpcConnection(ctx, chainInfo.ID)
 	if err != nil {
 		return BalanceResponse{}, err
 	}
@@ -124,8 +139,8 @@ func (s *Service) CheckBalance(ctx context.Context, input BalanceInput) (Balance
 	}
 
 	response := BalanceResponse{}
-	for _, denomUnit := range chain.Asset.DenomUnits {
-		if denomUnit.Denom == chain.Asset.Display {
+	for _, denomUnit := range chainInfo.Asset.DenomUnits {
+		if denomUnit.Denom == chainInfo.Asset.Display {
 			multiplier := big.NewFloat(0).SetFloat64(math.Pow(10, float64(denomUnit.Exponent)))
 
 			availableAmount := big.NewFloat(0)

@@ -35,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/chain.BalanceInput"
+                            "$ref": "#/definitions/account.BalanceInput"
                         }
                     }
                 ],
@@ -51,7 +51,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/chain.BalanceResponse"
+                                            "$ref": "#/definitions/account.BalanceResponse"
                                         }
                                     }
                                 }
@@ -80,7 +80,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/chain.CreateAccountInput"
+                            "$ref": "#/definitions/account.CreateAccountInput"
                         }
                     }
                 ],
@@ -96,7 +96,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/chain.AccountResponse"
+                                            "$ref": "#/definitions/account.KeyResponse"
                                         }
                                     }
                                 }
@@ -125,7 +125,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/chain.CreateMnemonicInput"
+                            "$ref": "#/definitions/account.CreateMnemonicInput"
                         }
                     }
                 ],
@@ -170,7 +170,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/chain.RestoreAccountInput"
+                            "$ref": "#/definitions/account.RestoreAccountInput"
                         }
                     }
                 ],
@@ -186,7 +186,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/chain.AccountResponse"
+                                            "$ref": "#/definitions/account.KeyResponse"
                                         }
                                     }
                                 }
@@ -252,7 +252,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/chain.SendTxInput"
+                            "$ref": "#/definitions/transaction.SendInput"
                         }
                     }
                 ],
@@ -268,7 +268,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/chain.SendTxResponse"
+                                            "$ref": "#/definitions/transaction.SendResponse"
                                         }
                                     }
                                 }
@@ -297,7 +297,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/chain.SimulateTxInput"
+                            "$ref": "#/definitions/transaction.SimulateInput"
                         }
                     }
                 ],
@@ -313,7 +313,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/chain.SimulateTxResponse"
+                                            "$ref": "#/definitions/transaction.SimulateResponse"
                                         }
                                     }
                                 }
@@ -325,29 +325,18 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "chain.AccountResponse": {
-            "type": "object",
-            "properties": {
-                "addresses": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "key": {
-                    "type": "string"
-                }
-            }
-        },
-        "chain.BalanceInput": {
+        "account.BalanceInput": {
             "type": "object",
             "properties": {
                 "address": {
                     "type": "string"
+                },
+                "chainId": {
+                    "type": "string"
                 }
             }
         },
-        "chain.BalanceResponse": {
+        "account.BalanceResponse": {
             "type": "object",
             "properties": {
                 "availableAmount": {
@@ -361,7 +350,7 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.CreateAccountInput": {
+        "account.CreateAccountInput": {
             "type": "object",
             "properties": {
                 "accountPath": {
@@ -384,7 +373,7 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.CreateMnemonicInput": {
+        "account.CreateMnemonicInput": {
             "type": "object",
             "properties": {
                 "mnemonicSize": {
@@ -392,10 +381,10 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.RestoreAccountInput": {
+        "account.KeyResponse": {
             "type": "object",
             "properties": {
-                "chainPrefixes": {
+                "addresses": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -406,36 +395,16 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.SendTxInput": {
+        "account.RestoreAccountInput": {
             "type": "object",
             "properties": {
-                "amount": {
-                    "type": "string"
-                },
-                "from": {
-                    "type": "string"
-                },
-                "gasAdjusted": {
-                    "type": "string"
-                },
-                "gasPrice": {
-                    "type": "string"
+                "chainPrefixes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "key": {
-                    "type": "string"
-                },
-                "memo": {
-                    "type": "string"
-                },
-                "to": {
-                    "type": "string"
-                }
-            }
-        },
-        "chain.SendTxResponse": {
-            "type": "object",
-            "properties": {
-                "txHash": {
                     "type": "string"
                 }
             }
@@ -484,10 +453,62 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.SimulateTxInput": {
+        "http.apiResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "isSuccess": {
+                    "type": "boolean"
+                },
+                "result": {}
+            }
+        },
+        "transaction.SendInput": {
             "type": "object",
             "properties": {
                 "amount": {
+                    "type": "string"
+                },
+                "chainId": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "gasAdjusted": {
+                    "type": "string"
+                },
+                "gasPrice": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SendResponse": {
+            "type": "object",
+            "properties": {
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SimulateInput": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "chainId": {
                     "type": "string"
                 },
                 "from": {
@@ -504,7 +525,7 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.SimulateTxResponse": {
+        "transaction.SimulateResponse": {
             "type": "object",
             "properties": {
                 "averageGasPrice": {
@@ -519,18 +540,6 @@ const docTemplate = `{
                 "lowGasPrice": {
                     "type": "string"
                 }
-            }
-        },
-        "http.apiResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "isSuccess": {
-                    "type": "boolean"
-                },
-                "result": {}
             }
         }
     }

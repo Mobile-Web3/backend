@@ -1,20 +1,13 @@
 basePath: /api
 definitions:
-  chain.AccountResponse:
-    properties:
-      addresses:
-        items:
-          type: string
-        type: array
-      key:
-        type: string
-    type: object
-  chain.BalanceInput:
+  account.BalanceInput:
     properties:
       address:
         type: string
+      chainId:
+        type: string
     type: object
-  chain.BalanceResponse:
+  account.BalanceResponse:
     properties:
       availableAmount:
         type: string
@@ -23,7 +16,7 @@ definitions:
       totalAmount:
         type: string
     type: object
-  chain.CreateAccountInput:
+  account.CreateAccountInput:
     properties:
       accountPath:
         type: integer
@@ -38,40 +31,27 @@ definitions:
       mnemonic:
         type: string
     type: object
-  chain.CreateMnemonicInput:
+  account.CreateMnemonicInput:
     properties:
       mnemonicSize:
         type: integer
     type: object
-  chain.RestoreAccountInput:
+  account.KeyResponse:
     properties:
-      chainPrefixes:
+      addresses:
         items:
           type: string
         type: array
       key:
         type: string
     type: object
-  chain.SendTxInput:
+  account.RestoreAccountInput:
     properties:
-      amount:
-        type: string
-      from:
-        type: string
-      gasAdjusted:
-        type: string
-      gasPrice:
-        type: string
+      chainPrefixes:
+        items:
+          type: string
+        type: array
       key:
-        type: string
-      memo:
-        type: string
-      to:
-        type: string
-    type: object
-  chain.SendTxResponse:
-    properties:
-      txHash:
         type: string
     type: object
   chain.ShortResponse:
@@ -103,9 +83,43 @@ definitions:
       symbol:
         type: string
     type: object
-  chain.SimulateTxInput:
+  http.apiResponse:
+    properties:
+      error:
+        type: string
+      isSuccess:
+        type: boolean
+      result: {}
+    type: object
+  transaction.SendInput:
     properties:
       amount:
+        type: string
+      chainId:
+        type: string
+      from:
+        type: string
+      gasAdjusted:
+        type: string
+      gasPrice:
+        type: string
+      key:
+        type: string
+      memo:
+        type: string
+      to:
+        type: string
+    type: object
+  transaction.SendResponse:
+    properties:
+      txHash:
+        type: string
+    type: object
+  transaction.SimulateInput:
+    properties:
+      amount:
+        type: string
+      chainId:
         type: string
       from:
         type: string
@@ -116,7 +130,7 @@ definitions:
       to:
         type: string
     type: object
-  chain.SimulateTxResponse:
+  transaction.SimulateResponse:
     properties:
       averageGasPrice:
         type: string
@@ -126,14 +140,6 @@ definitions:
         type: string
       lowGasPrice:
         type: string
-    type: object
-  http.apiResponse:
-    properties:
-      error:
-        type: string
-      isSuccess:
-        type: boolean
-      result: {}
     type: object
 info:
   contact: {}
@@ -151,7 +157,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/chain.BalanceInput'
+          $ref: '#/definitions/account.BalanceInput'
       produces:
       - application/json
       responses:
@@ -162,7 +168,7 @@ paths:
             - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
-                  $ref: '#/definitions/chain.BalanceResponse'
+                  $ref: '#/definitions/account.BalanceResponse'
               type: object
       summary: Получить инфу о балансе
       tags:
@@ -177,7 +183,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/chain.CreateAccountInput'
+          $ref: '#/definitions/account.CreateAccountInput'
       produces:
       - application/json
       responses:
@@ -188,7 +194,7 @@ paths:
             - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
-                  $ref: '#/definitions/chain.AccountResponse'
+                  $ref: '#/definitions/account.KeyResponse'
               type: object
       summary: Получение аккаунта по мнемонику
       tags:
@@ -203,7 +209,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/chain.CreateMnemonicInput'
+          $ref: '#/definitions/account.CreateMnemonicInput'
       produces:
       - application/json
       responses:
@@ -229,7 +235,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/chain.RestoreAccountInput'
+          $ref: '#/definitions/account.RestoreAccountInput'
       produces:
       - application/json
       responses:
@@ -240,7 +246,7 @@ paths:
             - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
-                  $ref: '#/definitions/chain.AccountResponse'
+                  $ref: '#/definitions/account.KeyResponse'
               type: object
       summary: Получение аккаунта по ключу
       tags:
@@ -276,7 +282,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/chain.SendTxInput'
+          $ref: '#/definitions/transaction.SendInput'
       produces:
       - application/json
       responses:
@@ -287,7 +293,7 @@ paths:
             - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
-                  $ref: '#/definitions/chain.SendTxResponse'
+                  $ref: '#/definitions/transaction.SendResponse'
               type: object
       summary: Отправить транзакцию
       tags:
@@ -302,7 +308,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/chain.SimulateTxInput'
+          $ref: '#/definitions/transaction.SimulateInput'
       produces:
       - application/json
       responses:
@@ -313,7 +319,7 @@ paths:
             - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
-                  $ref: '#/definitions/chain.SimulateTxResponse'
+                  $ref: '#/definitions/transaction.SimulateResponse'
               type: object
       summary: Симуляция транзакции для расчета параметров
       tags:
