@@ -1,23 +1,5 @@
 basePath: /api
 definitions:
-  api.Response:
-    properties:
-      error:
-        type: string
-      isSuccess:
-        type: boolean
-      result: {}
-    type: object
-  api.checkRequest:
-    properties:
-      walletAddress:
-        type: string
-    type: object
-  api.createMnemonicInput:
-    properties:
-      mnemonicSize:
-        type: integer
-    type: object
   chain.AccountResponse:
     properties:
       addresses:
@@ -27,7 +9,12 @@ definitions:
       key:
         type: string
     type: object
-  chain.CheckResponse:
+  chain.BalanceInput:
+    properties:
+      address:
+        type: string
+    type: object
+  chain.BalanceResponse:
     properties:
       availableAmount:
         type: string
@@ -50,6 +37,11 @@ definitions:
         type: integer
       mnemonic:
         type: string
+    type: object
+  chain.CreateMnemonicInput:
+    properties:
+      mnemonicSize:
+        type: integer
     type: object
   chain.RestoreAccountInput:
     properties:
@@ -135,12 +127,46 @@ definitions:
       lowGasPrice:
         type: string
     type: object
+  http.apiResponse:
+    properties:
+      error:
+        type: string
+      isSuccess:
+        type: boolean
+      result: {}
+    type: object
 info:
   contact: {}
   description: API
   title: Swagger UI
   version: "1.0"
 paths:
+  /account/balance:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/chain.BalanceInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.apiResponse'
+            - properties:
+                result:
+                  $ref: '#/definitions/chain.BalanceResponse'
+              type: object
+      summary: Получить инфу о балансе
+      tags:
+      - account
   /account/create:
     post:
       consumes:
@@ -159,7 +185,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/chain.AccountResponse'
@@ -177,7 +203,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.createMnemonicInput'
+          $ref: '#/definitions/chain.CreateMnemonicInput'
       produces:
       - application/json
       responses:
@@ -185,7 +211,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
                   type: string
@@ -211,7 +237,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/chain.AccountResponse'
@@ -219,32 +245,6 @@ paths:
       summary: Получение аккаунта по ключу
       tags:
       - account
-  /balance/check:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.checkRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                result:
-                  $ref: '#/definitions/chain.CheckResponse'
-              type: object
-      summary: Получить инфу о балансе
-      tags:
-      - balance
   /chains/all:
     post:
       consumes:
@@ -256,7 +256,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
                   items:
@@ -284,7 +284,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/chain.SendTxResponse'
@@ -310,7 +310,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/chain.SimulateTxResponse'

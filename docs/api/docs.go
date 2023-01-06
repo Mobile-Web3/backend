@@ -16,6 +16,51 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/account/balance": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Получить инфу о балансе",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chain.BalanceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.apiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/chain.BalanceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/account/create": {
             "post": {
                 "consumes": [
@@ -45,7 +90,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.Response"
+                                    "$ref": "#/definitions/http.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -80,7 +125,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.createMnemonicInput"
+                            "$ref": "#/definitions/chain.CreateMnemonicInput"
                         }
                     }
                 ],
@@ -90,7 +135,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.Response"
+                                    "$ref": "#/definitions/http.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -135,58 +180,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.Response"
+                                    "$ref": "#/definitions/http.apiResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "result": {
                                             "$ref": "#/definitions/chain.AccountResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/balance/check": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "balance"
-                ],
-                "summary": "Получить инфу о балансе",
-                "parameters": [
-                    {
-                        "description": "body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.checkRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/api.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "result": {
-                                            "$ref": "#/definitions/chain.CheckResponse"
                                         }
                                     }
                                 }
@@ -214,7 +214,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.Response"
+                                    "$ref": "#/definitions/http.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -262,7 +262,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.Response"
+                                    "$ref": "#/definitions/http.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -307,7 +307,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.Response"
+                                    "$ref": "#/definitions/http.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -325,34 +325,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.Response": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "isSuccess": {
-                    "type": "boolean"
-                },
-                "result": {}
-            }
-        },
-        "api.checkRequest": {
-            "type": "object",
-            "properties": {
-                "walletAddress": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.createMnemonicInput": {
-            "type": "object",
-            "properties": {
-                "mnemonicSize": {
-                    "type": "integer"
-                }
-            }
-        },
         "chain.AccountResponse": {
             "type": "object",
             "properties": {
@@ -367,7 +339,15 @@ const docTemplate = `{
                 }
             }
         },
-        "chain.CheckResponse": {
+        "chain.BalanceInput": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                }
+            }
+        },
+        "chain.BalanceResponse": {
             "type": "object",
             "properties": {
                 "availableAmount": {
@@ -401,6 +381,14 @@ const docTemplate = `{
                 },
                 "mnemonic": {
                     "type": "string"
+                }
+            }
+        },
+        "chain.CreateMnemonicInput": {
+            "type": "object",
+            "properties": {
+                "mnemonicSize": {
+                    "type": "integer"
                 }
             }
         },
@@ -531,6 +519,18 @@ const docTemplate = `{
                 "lowGasPrice": {
                     "type": "string"
                 }
+            }
+        },
+        "http.apiResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "isSuccess": {
+                    "type": "boolean"
+                },
+                "result": {}
             }
         }
     }

@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"errors"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -15,10 +13,10 @@ import (
 	_ "github.com/Mobile-Web3/backend/docs/api"
 	"github.com/Mobile-Web3/backend/internal/chain"
 	"github.com/Mobile-Web3/backend/internal/cosmos"
+	httphandler "github.com/Mobile-Web3/backend/internal/handler/http"
+	"github.com/Mobile-Web3/backend/internal/server/http"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 	"github.com/Mobile-Web3/backend/pkg/env"
-	"github.com/gin-gonic/gin"
-	swagger "github.com/swaggo/http-swagger"
 )
 
 // @title           Swagger UI
@@ -104,52 +102,20 @@ func Run() {
 	}
 
 	chainService := chain.NewService(gasAdjustment, chainRepository, cosmosClient)
-	controller := NewController(chainRepository, chainService, cosmosClient)
-
-	gin.SetMode("release")
-	router := gin.New()
-
-	router.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
-		c.JSON(http.StatusOK, newErrorResponse("internal error"))
-	}))
-
-	swaggerHandler := gin.WrapH(swagger.Handler(swagger.URL("doc.json")))
-	router.GET("/api/swagger/*any", swaggerHandler)
-
-	api := router.Group("/api")
-	{
-		api.POST("/balance/check", controller.CheckBalance)
-		api.POST("/transaction/send", controller.SendTransaction)
-		api.POST("/transaction/simulate", controller.SimulateTransaction)
-		api.POST("/chains/all", controller.GetAllChains)
-		api.POST("/account/mnemonic", controller.CreateMnemonic)
-		api.POST("/account/create", controller.CreateAccount)
-		api.POST("/account/restore", controller.RestoreAccount)
-	}
+	handler := httphandler.New(chainRepository, chainService)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		errorLogger.Println("empty PORT env")
 		return
 	}
-	server := http.Server{
-		Addr:    ":" + port,
-		Handler: router,
-	}
 
-	go func() {
-		infoLogger.Println("server started")
-		if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errorLogger.Println(err)
-		}
-	}()
+	server := http.New(port, handler, infoLogger, errorLogger)
+	go server.Start()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	infoLogger.Println("server shutting down")
-	if err = server.Shutdown(context.Background()); err != nil {
-		errorLogger.Println(err)
-	}
+	server.Stop()
 }

@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/cosmos/cosmos-sdk v0.46.4
+	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/evmos/ethermint v0.6.1-0.20220810122651-42abb259cbed
 	github.com/gin-gonic/gin v1.8.1
@@ -42,7 +43,6 @@ require (
 	github.com/confio/ics23/go v0.7.0 // indirect
 	github.com/cosmos/btcutil v1.0.4 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-alpha7 // indirect
-	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/cosmos/iavl v0.19.4 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.11.1 // indirect

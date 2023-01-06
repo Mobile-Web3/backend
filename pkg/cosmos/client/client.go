@@ -26,7 +26,6 @@ type Client struct {
 	chainMutex  sync.RWMutex
 	chains      map[string]*chainState
 
-	keyName  string
 	signMode signing.SignMode
 
 	getRPCEndpointHandler GetRPCEndpointHandler
@@ -54,7 +53,6 @@ func NewClient(signMode string, rpcLifetime time.Duration, getRPCEndpointHandler
 		rpcLifetime: rpcLifetime,
 		chainMutex:  sync.RWMutex{},
 		chains:      make(map[string]*chainState),
-		keyName:     "source_key",
 		signMode:    mode,
 
 		getRPCEndpointHandler: getRPCEndpointHandler,

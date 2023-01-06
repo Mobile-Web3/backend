@@ -71,7 +71,7 @@ func (s *Service) SendTransaction(ctx context.Context, input SendTxInput) (SendT
 		Memo:        input.Memo,
 		GasAdjusted: input.GasAdjusted,
 		GasPrice:    gasPrice,
-		ChainPrefix: toChain.Prefix,
+		ChainPrefix: fromChain.Prefix,
 		Key:         input.Key,
 		Message:     msgSend,
 	})
@@ -146,9 +146,9 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 	}
 
 	txBytes, err := s.cosmosClient.CreateSimulateTransaction(ctx, client.SimulateTransactionData{
-		ChainID:     toChain.ID,
+		ChainID:     fromChain.ID,
 		Memo:        input.Memo,
-		ChainPrefix: toChain.Prefix,
+		ChainPrefix: fromChain.Prefix,
 		Key:         input.Key,
 		Message:     msgSend,
 	})
@@ -166,7 +166,7 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 		Prove:  simQuery.Prove,
 	}
 
-	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, toChain.ID)
+	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
 	if err != nil {
 		return SimulateTxResponse{}, err
 	}
@@ -188,15 +188,15 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateTxInput
 	}
 
 	gasAdjusted := math.Round(float64(result.GasInfo.GasUsed) * s.gasAdjustment)
-	_, exponent, err := toChain.GetBaseDenom()
+	_, exponent, err := fromChain.GetBaseDenom()
 	if err != nil {
 		return SimulateTxResponse{}, err
 	}
 
 	divider := math.Pow(10, float64(exponent))
-	lowGasPrice := math.Round(gasAdjusted*toChain.LowGasPrice) / divider
-	averageGasPrice := math.Round(gasAdjusted*toChain.AverageGasPrice) / divider
-	highGasPrice := math.Round(gasAdjusted*toChain.HighGasPrice) / divider
+	lowGasPrice := math.Round(gasAdjusted*fromChain.LowGasPrice) / divider
+	averageGasPrice := math.Round(gasAdjusted*fromChain.AverageGasPrice) / divider
+	highGasPrice := math.Round(gasAdjusted*fromChain.HighGasPrice) / divider
 
 	return SimulateTxResponse{
 		GasAdjusted:     fmt.Sprintf("%.0f", gasAdjusted),

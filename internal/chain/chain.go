@@ -98,7 +98,7 @@ func (c *Chain) FromDisplayToBase(amount string) (string, error) {
 	}
 
 	if amount == "0" {
-		return amount + denom, nil
+		return "", ErrInvalidAmount
 	}
 
 	var sb strings.Builder
