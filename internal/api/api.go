@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/Mobile-Web3/backend/internal/server/http"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 	"github.com/Mobile-Web3/backend/pkg/env"
+	"github.com/robfig/cron"
 )
 
 // @title           Swagger UI
@@ -46,13 +48,7 @@ func Run() {
 		return
 	}
 
-	gasAdjustmentStr := os.Getenv("GAS_ADJUSTMENT")
-	if gasAdjustmentStr == "" {
-		errorLogger.Println("empty GAS_ADJUSTMENT env")
-		return
-	}
-	gasAdjustment, err := strconv.ParseFloat(gasAdjustmentStr, 64)
-	if err != nil {
+	if err = os.Setenv("SYS_CHAIN_REGISTRY_DIR", strings.TrimSuffix(registryDir, "chain-registry")); err != nil {
 		errorLogger.Println(err)
 		return
 	}
@@ -86,6 +82,17 @@ func Run() {
 		return
 	}
 
+	gasAdjustmentStr := os.Getenv("GAS_ADJUSTMENT")
+	if gasAdjustmentStr == "" {
+		errorLogger.Println("empty GAS_ADJUSTMENT env")
+		return
+	}
+	gasAdjustment, err := strconv.ParseFloat(gasAdjustmentStr, 64)
+	if err != nil {
+		errorLogger.Println(err)
+		return
+	}
+
 	accounts := account.NewService(chainRepository, cosmosClient)
 	transactions := transaction.NewService(gasAdjustment, chainRepository, cosmosClient)
 	handler := httphandler.New(chainRepository, accounts, transactions)
@@ -96,6 +103,17 @@ func Run() {
 		return
 	}
 
+	c := cron.New()
+	if err = c.AddFunc("0 0 0 * * *", func() {
+		if uploadErr := chainRegistry.UploadChainInfo(context.Background()); uploadErr != nil {
+			errorLogger.Println(uploadErr)
+		}
+	}); err != nil {
+		errorLogger.Println(err)
+		return
+	}
+	c.Start()
+
 	server := http.New(port, handler, infoLogger, errorLogger)
 	go server.Start()
 
@@ -104,4 +122,5 @@ func Run() {
 	<-quit
 
 	server.Stop()
+	c.Stop()
 }

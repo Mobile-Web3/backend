@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 )
@@ -30,6 +31,21 @@ func NewChainRegistry(registryURL string, registryDir string, repository chain.R
 func (cr *ChainRegistry) UploadChainInfo(ctx context.Context) error {
 	dirs, err := os.ReadDir(cr.registryDir)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		cmd := exec.Command("sh", "./scripts/registry-clone.sh")
+		if cloneErr := cmd.Run(); cloneErr != nil {
+			return cloneErr
+		}
+		dirs, err = os.ReadDir(cr.registryDir)
+		if err != nil {
+			return err
+		}
+	}
+
+	cmd := exec.Command("sh", "./scripts/registry-update.sh")
+	if err = cmd.Run(); err != nil {
 		return err
 	}
 
