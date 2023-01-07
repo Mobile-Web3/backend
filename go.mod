@@ -9,7 +9,7 @@ require (
 	github.com/evmos/ethermint v0.6.1-0.20220810122651-42abb259cbed
 	github.com/gin-gonic/gin v1.8.1
 	github.com/gogo/protobuf v1.3.3
-	github.com/robfig/cron v1.2.0
+	github.com/google/go-github/v49 v49.0.0
 	github.com/swaggo/http-swagger v1.3.3
 	github.com/swaggo/swag v1.8.8
 	github.com/tendermint/tendermint v0.34.23
@@ -77,6 +77,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.6.0 // indirect

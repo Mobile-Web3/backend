@@ -1,4 +1,4 @@
-package cosmos
+package memory
 
 import (
 	"context"
@@ -39,14 +39,12 @@ func (r *ChainRepository) GetByID(ctx context.Context, chainID string) (chain.Ch
 }
 
 func (r *ChainRepository) UpdateChains(ctx context.Context, chains []chain.Chain) error {
-	var prefixes []string
-	var responses []chain.ShortResponse
+	responses := make([]chain.ShortResponse, len(chains))
 	chainsMap := make(map[string]chain.Chain)
 
-	for _, chainData := range chains {
-		prefixes = append(prefixes, chainData.Prefix)
+	for index, chainData := range chains {
 		chainsMap[chainData.ID] = chainData
-		responses = append(responses, chain.ShortResponse{
+		responses[index] = chain.ShortResponse{
 			ID:          chainData.ID,
 			Name:        chainData.Name,
 			PrettyName:  chainData.PrettyName,
@@ -59,7 +57,7 @@ func (r *ChainRepository) UpdateChains(ctx context.Context, chains []chain.Chain
 			LogoPngURL:  chainData.Asset.Logo.Png,
 			LogoSvgURL:  chainData.Asset.Logo.Svg,
 			KeyAlgos:    chainData.KeyAlgos,
-		})
+		}
 	}
 
 	r.mutex.Lock()
