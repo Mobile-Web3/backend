@@ -5,12 +5,12 @@ services:
     image: nginx:1.21.6
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
-      - $PROXY_CERT_PATH:/etc/nginx/certificate.crt
-      - $PROXY_KEY_PATH:/etc/nginx/www.mobileweb3.tech.key
-      - $PROXY_INDEX_PATH:/etc/nginx/index.html
-      - $PROXY_STYLES_PATH:/etc/nginx/style.css
-      - $PROXY_IMAGES_PATH:/etc/nginx/image
-      - $PROXY_VENDOR_PATH:/etc/nginx/vendor
+      - ../../ssl/certificate.crt:/etc/nginx/certificate.crt
+      - ../../ssl/www.mobileweb3.tech.key:/etc/nginx/www.mobileweb3.tech.key
+      - ../../site/index.html:/etc/nginx/index.html
+      - ../../site/style.css:/etc/nginx/style.css
+      - ../../site/image:/etc/nginx/image
+      - ../../site/vendor:/etc/nginx/vendor
     ports:
       - "80:80"
       - "443:443"
@@ -34,7 +34,7 @@ services:
     ports:
       - "8090:8090"
     volumes:
-      - $API_ENV_PATH:/app/.env
+      - ../../environment/api/.env:/app/.env
     build:
       context: ..
       dockerfile: build/Dockerfile-api
