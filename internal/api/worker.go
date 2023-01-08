@@ -2,20 +2,20 @@ package api
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
+	"github.com/Mobile-Web3/backend/pkg/log"
 )
 
 type Worker struct {
 	interval time.Duration
 	timer    *time.Timer
-	logger   *log.Logger
+	logger   log.Logger
 	registry chain.Registry
 }
 
-func NewWorker(interval time.Duration, logger *log.Logger, registry chain.Registry) *Worker {
+func NewWorker(interval time.Duration, logger log.Logger, registry chain.Registry) *Worker {
 	worker := &Worker{
 		interval: interval,
 		logger:   logger,
@@ -33,7 +33,7 @@ func (w *Worker) Start() {
 	w.timer = time.AfterFunc(w.interval, func() {
 		w.timer.Stop()
 		if err := w.registry.UploadChainInfo(context.Background()); err != nil {
-			w.logger.Println(err)
+			w.logger.Error(err)
 		}
 		w.timer.Reset(w.interval)
 	})

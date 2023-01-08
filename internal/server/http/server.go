@@ -3,20 +3,19 @@ package http
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
+
+	"github.com/Mobile-Web3/backend/pkg/log"
 )
 
 type Server struct {
-	infoLogger  *log.Logger
-	errorLogger *log.Logger
-	server      *http.Server
+	logger log.Logger
+	server *http.Server
 }
 
-func New(port string, handler http.Handler, infoLogger *log.Logger, errorLogger *log.Logger) *Server {
+func New(port string, logger log.Logger, handler http.Handler) *Server {
 	return &Server{
-		infoLogger:  infoLogger,
-		errorLogger: errorLogger,
+		logger: logger,
 		server: &http.Server{
 			Addr:    ":" + port,
 			Handler: handler,
@@ -25,15 +24,15 @@ func New(port string, handler http.Handler, infoLogger *log.Logger, errorLogger 
 }
 
 func (s *Server) Start() {
-	s.infoLogger.Println("server started")
+	s.logger.Info("server started")
 	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		s.errorLogger.Println(err)
+		s.logger.Error(err)
 	}
 }
 
 func (s *Server) Stop() {
-	s.infoLogger.Println("server shutting down")
+	s.logger.Info("server shutting down")
 	if err := s.server.Shutdown(context.Background()); err != nil {
-		s.errorLogger.Println(err)
+		s.logger.Error(err)
 	}
 }

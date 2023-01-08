@@ -8,11 +8,15 @@ import (
 	"github.com/Mobile-Web3/backend/internal/domain/account"
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/internal/domain/transaction"
+	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/gin-gonic/gin"
 	swagger "github.com/swaggo/http-swagger"
 )
 
+var logger log.Logger
+
 type requestHandler[TRequest any, TResponse any] func(ctx context.Context, request TRequest) (TResponse, error)
+type emptyHandler[TResponse any] func(ctx context.Context) (TResponse, error)
 
 func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequest, TResponse]) func(context *gin.Context) {
 	return func(context *gin.Context) {
@@ -24,6 +28,7 @@ func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequ
 
 		response, err := handler(context.Request.Context(), request)
 		if err != nil {
+			logger.Error(err)
 			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 			return
 		}
@@ -31,13 +36,12 @@ func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequ
 		context.JSON(http.StatusOK, newSuccessResponse(response))
 	}
 }
-
-type emptyHandler[TResponse any] func(ctx context.Context) (TResponse, error)
 
 func newEmptyHandler[TResponse any](handler emptyHandler[TResponse]) func(context *gin.Context) {
 	return func(context *gin.Context) {
 		response, err := handler(context.Request.Context())
 		if err != nil {
+			logger.Error(err)
 			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 			return
 		}
@@ -46,14 +50,22 @@ func newEmptyHandler[TResponse any](handler emptyHandler[TResponse]) func(contex
 	}
 }
 
-func New(chainRepository chain.Repository, accountService *account.Service, transactionService *transaction.Service) http.Handler {
+type Dependencies struct {
+	Logger             log.Logger
+	Repository         chain.Repository
+	AccountService     *account.Service
+	TransactionService *transaction.Service
+}
+
+func New(dependencies *Dependencies) http.Handler {
+	accountService := dependencies.AccountService
+	transactionService := dependencies.TransactionService
+	chainRepository := dependencies.Repository
+	logger = dependencies.Logger
+
 	gin.SetMode("release")
 	router := gin.New()
-
-	router.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
-		c.JSON(http.StatusOK, newErrorResponse("internal error"))
-	}))
-
+	router.Use(recoverMiddleware(logger))
 	swaggerHandler := gin.WrapH(swagger.Handler(swagger.URL("doc.json")))
 	router.GET("/api/swagger/*any", swaggerHandler)
 

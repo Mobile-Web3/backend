@@ -2,7 +2,7 @@ package api
 
 import (
 	"context"
-	"log"
+	"errors"
 	"os"
 	"os/signal"
 	"strconv"
@@ -18,6 +18,12 @@ import (
 	"github.com/Mobile-Web3/backend/internal/server/http"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
 	"github.com/Mobile-Web3/backend/pkg/env"
+	"github.com/Mobile-Web3/backend/pkg/log"
+)
+
+var (
+	errEmptyGasAdjustment = errors.New("empty GAS_ADJUSTMENT env")
+	errEmptyPort          = errors.New("empty PORT env")
 )
 
 // @title           Swagger UI
@@ -26,12 +32,11 @@ import (
 // @BasePath  /api
 
 func Run() {
-	infoLogger := log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
-	errorLogger := log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.NewFmt("02.01.2006 15:04:05")
 
 	err := env.Parse()
 	if err != nil {
-		errorLogger.Println(err)
+		logger.Error(err)
 		return
 	}
 
@@ -41,47 +46,52 @@ func Run() {
 	}
 	rpcLifetime, err := time.ParseDuration(chainRPCLifetimeENV)
 	if err != nil {
-		errorLogger.Println(err)
+		logger.Error(err)
 		return
 	}
 
 	chainRepository := memory.NewChainRepository()
 	chainRegistry := chain.NewRegistry(chainRepository)
 	if err = chainRegistry.UploadChainInfo(context.Background()); err != nil {
-		errorLogger.Println(err)
+		logger.Error(err)
 		return
 	}
 
 	cosmosClient, err := client.NewClient("direct", rpcLifetime, chainRepository.GetRPCEndpoints)
 	if err != nil {
-		errorLogger.Println(err)
+		logger.Error(err)
 		return
 	}
 
 	gasAdjustmentStr := os.Getenv("GAS_ADJUSTMENT")
 	if gasAdjustmentStr == "" {
-		errorLogger.Println("empty GAS_ADJUSTMENT env")
+		logger.Error(errEmptyGasAdjustment)
 		return
 	}
 	gasAdjustment, err := strconv.ParseFloat(gasAdjustmentStr, 64)
 	if err != nil {
-		errorLogger.Println(err)
+		logger.Error(err)
 		return
 	}
 
 	accounts := account.NewService(chainRepository, cosmosClient)
 	transactions := transaction.NewService(gasAdjustment, chainRepository, cosmosClient)
-	handler := httphandler.New(chainRepository, accounts, transactions)
+	handler := httphandler.New(&httphandler.Dependencies{
+		Logger:             logger,
+		Repository:         chainRepository,
+		AccountService:     accounts,
+		TransactionService: transactions,
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		errorLogger.Println("empty PORT env")
+		logger.Error(errEmptyPort)
 		return
 	}
 
-	worker := NewWorker(time.Hour*12, errorLogger, chainRegistry)
+	worker := NewWorker(time.Hour*12, logger, chainRegistry)
 	worker.Start()
-	server := http.New(port, handler, infoLogger, errorLogger)
+	server := http.New(port, logger, handler)
 	go server.Start()
 
 	quit := make(chan os.Signal, 1)
