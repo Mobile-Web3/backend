@@ -23,6 +23,8 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 					value = errors.New(err.(string))
 				case error:
 					value = err.(error)
+				default:
+					value = errors.New("unknown error")
 				}
 
 				logger.Panic(value)

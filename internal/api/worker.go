@@ -9,17 +9,17 @@ import (
 )
 
 type Worker struct {
-	interval time.Duration
-	timer    *time.Timer
-	logger   log.Logger
-	registry chain.Registry
+	interval     time.Duration
+	timer        *time.Timer
+	logger       log.Logger
+	chainService *chain.Service
 }
 
-func NewWorker(interval time.Duration, logger log.Logger, registry chain.Registry) *Worker {
+func NewWorker(interval time.Duration, logger log.Logger, chainService *chain.Service) *Worker {
 	worker := &Worker{
-		interval: interval,
-		logger:   logger,
-		registry: registry,
+		interval:     interval,
+		logger:       logger,
+		chainService: chainService,
 	}
 
 	return worker
@@ -32,7 +32,7 @@ func (w *Worker) Start() {
 
 	w.timer = time.AfterFunc(w.interval, func() {
 		w.timer.Stop()
-		if err := w.registry.UploadChainInfo(context.Background()); err != nil {
+		if err := w.chainService.UpdateChainInfo(context.Background()); err != nil {
 			w.logger.Error(err)
 		}
 		w.timer.Reset(w.interval)

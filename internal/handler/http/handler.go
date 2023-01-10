@@ -13,10 +13,20 @@ import (
 	swagger "github.com/swaggo/http-swagger"
 )
 
-var logger log.Logger
-
+type handler[TResponse any] func(ctx context.Context) (TResponse, error)
 type requestHandler[TRequest any, TResponse any] func(ctx context.Context, request TRequest) (TResponse, error)
-type emptyHandler[TResponse any] func(ctx context.Context) (TResponse, error)
+
+func newHandler[TResponse any](handler handler[TResponse]) func(context *gin.Context) {
+	return func(context *gin.Context) {
+		response, err := handler(context.Request.Context())
+		if err != nil {
+			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
+			return
+		}
+
+		context.JSON(http.StatusOK, newSuccessResponse(response))
+	}
+}
 
 func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequest, TResponse]) func(context *gin.Context) {
 	return func(context *gin.Context) {
@@ -28,20 +38,6 @@ func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequ
 
 		response, err := handler(context.Request.Context(), request)
 		if err != nil {
-			logger.Error(err)
-			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
-			return
-		}
-
-		context.JSON(http.StatusOK, newSuccessResponse(response))
-	}
-}
-
-func newEmptyHandler[TResponse any](handler emptyHandler[TResponse]) func(context *gin.Context) {
-	return func(context *gin.Context) {
-		response, err := handler(context.Request.Context())
-		if err != nil {
-			logger.Error(err)
 			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
 			return
 		}
@@ -61,11 +57,10 @@ func New(dependencies *Dependencies) http.Handler {
 	accountService := dependencies.AccountService
 	transactionService := dependencies.TransactionService
 	chainRepository := dependencies.Repository
-	logger = dependencies.Logger
 
 	gin.SetMode("release")
 	router := gin.New()
-	router.Use(recoverMiddleware(logger))
+	router.Use(recoverMiddleware(dependencies.Logger))
 	swaggerHandler := gin.WrapH(swagger.Handler(swagger.URL("doc.json")))
 	router.GET("/api/swagger/*any", swaggerHandler)
 
@@ -81,7 +76,7 @@ func New(dependencies *Dependencies) http.Handler {
 
 		chains := api.Group("chains")
 		{
-			chains.POST("all", newEmptyHandler(chainRepository.GetAllChains))
+			chains.POST("all", newHandler(chainRepository.GetAllChains))
 		}
 
 		transactions := api.Group("transaction")

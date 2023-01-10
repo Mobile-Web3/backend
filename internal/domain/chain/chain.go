@@ -73,12 +73,12 @@ type Chain struct {
 	Asset           Asset    `json:"asset,omitempty"`
 }
 
-func (c *Chain) GetBaseDenom() (denom string, exponent int, err error) {
-	for _, unit := range c.Asset.DenomUnits {
-		if unit.Denom == c.Asset.Base {
+func GetBaseDenom(base string, display string, denoms []DenomUnit) (denom string, exponent int, err error) {
+	for _, unit := range denoms {
+		if unit.Denom == base {
 			denom = unit.Denom
-			for _, displayUnit := range c.Asset.DenomUnits {
-				if displayUnit.Denom == c.Asset.Display {
+			for _, displayUnit := range denoms {
+				if displayUnit.Denom == display {
 					exponent = displayUnit.Exponent
 					break
 				}
@@ -91,12 +91,7 @@ func (c *Chain) GetBaseDenom() (denom string, exponent int, err error) {
 	return
 }
 
-func (c *Chain) FromDisplayToBase(amount string) (string, error) {
-	denom, exponent, err := c.GetBaseDenom()
-	if err != nil {
-		return "", err
-	}
-
+func FromDisplayToBase(amount string, denom string, exponent int) (string, error) {
 	if amount == "0" {
 		return "", ErrInvalidAmount
 	}
@@ -146,29 +141,31 @@ func (c *Chain) FromDisplayToBase(amount string) (string, error) {
 	return sb.String(), nil
 }
 
-func (c *Chain) InitGasPrice() {
-	for _, feeToken := range c.Fees.FeeTokens {
-		if feeToken.Denom == c.Asset.Base {
+func GetGasPrices(base string, feeTokens []FeeToken) (lowGasPrice float64, averageGasPrice float64, highGasPrice float64) {
+	for _, feeToken := range feeTokens {
+		if feeToken.Denom == base {
 			if feeToken.LowGasPrice <= 0 && feeToken.AverageGasPrice <= 0 && feeToken.HighGasPrice <= 0 {
-				c.LowGasPrice = DefaultLowGasPrice + feeToken.MinGasPrice
-				c.AverageGasPrice = DefaultAverageGasPrice + feeToken.MinGasPrice
-				c.HighGasPrice = DefaultHighGasPrice + feeToken.MinGasPrice
-				break
+				lowGasPrice = DefaultLowGasPrice + feeToken.MinGasPrice
+				averageGasPrice = DefaultAverageGasPrice + feeToken.MinGasPrice
+				highGasPrice = DefaultHighGasPrice + feeToken.MinGasPrice
+				return
 			}
 
-			c.LowGasPrice = feeToken.LowGasPrice + feeToken.MinGasPrice
-			c.AverageGasPrice = feeToken.AverageGasPrice + feeToken.MinGasPrice
-			c.HighGasPrice = feeToken.HighGasPrice + feeToken.MinGasPrice
-			break
+			lowGasPrice = feeToken.LowGasPrice + feeToken.MinGasPrice
+			averageGasPrice = feeToken.AverageGasPrice + feeToken.MinGasPrice
+			highGasPrice = feeToken.HighGasPrice + feeToken.MinGasPrice
+			return
 		}
 	}
+
+	return
 }
 
-func (c *Chain) InitRPCUrls() error {
-	for index, endpoint := range c.Api.Rpc {
+func ValidateRPCUrls(rpc []Rpc) ([]Rpc, error) {
+	for index, endpoint := range rpc {
 		u, err := url.Parse(endpoint.Address)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var port string
@@ -179,14 +176,14 @@ func (c *Chain) InitRPCUrls() error {
 			case "http":
 				port = "80"
 			default:
-				return fmt.Errorf("invalid or unsupported url scheme: %v", u.Scheme)
+				return nil, fmt.Errorf("invalid or unsupported url scheme: %v", u.Scheme)
 			}
 		} else {
 			port = u.Port()
 		}
 
-		c.Api.Rpc[index].Address = fmt.Sprintf("%s://%s:%s%s", u.Scheme, u.Hostname(), port, u.Path)
+		rpc[index].Address = fmt.Sprintf("%s://%s:%s%s", u.Scheme, u.Hostname(), port, u.Path)
 	}
 
-	return nil
+	return rpc, nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/Mobile-Web3/backend/internal/domain/account"
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/internal/domain/transaction"
+	"github.com/Mobile-Web3/backend/internal/github"
 	httphandler "github.com/Mobile-Web3/backend/internal/handler/http"
 	"github.com/Mobile-Web3/backend/internal/server/http"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
@@ -51,8 +52,9 @@ func Run() {
 	}
 
 	chainRepository := memory.NewChainRepository()
-	chainRegistry := chain.NewRegistry(chainRepository)
-	if err = chainRegistry.UploadChainInfo(context.Background()); err != nil {
+	chainRegistryClient := github.NewChainRegistryClient()
+	chainService := chain.NewService(chainRegistryClient, chainRepository)
+	if err = chainService.UpdateChainInfo(context.Background()); err != nil {
 		logger.Error(err)
 		return
 	}
@@ -89,7 +91,7 @@ func Run() {
 		return
 	}
 
-	worker := NewWorker(time.Hour*12, logger, chainRegistry)
+	worker := NewWorker(time.Hour*12, logger, chainService)
 	worker.Start()
 	server := http.New(port, logger, handler)
 	go server.Start()

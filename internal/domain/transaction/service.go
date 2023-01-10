@@ -49,12 +49,17 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 		return SendResponse{}, err
 	}
 
-	amount, err := fromChain.FromDisplayToBase(input.Amount)
+	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
 	if err != nil {
 		return SendResponse{}, err
 	}
 
-	gasPrice, err := fromChain.FromDisplayToBase(input.GasPrice)
+	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
+	if err != nil {
+		return SendResponse{}, err
+	}
+
+	gasPrice, err := chain.FromDisplayToBase(input.GasPrice, denom, exponent)
 	if err != nil {
 		return SendResponse{}, err
 	}
@@ -125,7 +130,12 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 		return SimulateResponse{}, err
 	}
 
-	amount, err := fromChain.FromDisplayToBase(input.Amount)
+	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
+	if err != nil {
+		return SimulateResponse{}, err
+	}
+
+	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
 	if err != nil {
 		return SimulateResponse{}, err
 	}
@@ -184,11 +194,6 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 	}
 
 	gasAdjusted := math.Round(float64(result.GasInfo.GasUsed) * s.gasAdjustment)
-	_, exponent, err := fromChain.GetBaseDenom()
-	if err != nil {
-		return SimulateResponse{}, err
-	}
-
 	divider := math.Pow(10, float64(exponent))
 	lowGasPrice := math.Round(gasAdjusted*fromChain.LowGasPrice) / divider
 	averageGasPrice := math.Round(gasAdjusted*fromChain.AverageGasPrice) / divider
