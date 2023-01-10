@@ -21,7 +21,7 @@ type FmtLogger struct {
 
 func NewFmt(timeFormat string) *FmtLogger {
 	infoLogger := log.New(os.Stdout, "INFO: ", 0)
-	errorLogger := log.New(os.Stdout, "ERROR: ", 0)
+	errorLogger := log.New(os.Stdout, "ERROR: ", log.Llongfile)
 
 	return &FmtLogger{
 		infoLogger:  infoLogger,
@@ -37,7 +37,7 @@ func (l *FmtLogger) Info(msg string) {
 
 func (l *FmtLogger) Error(err error) {
 	datetime := time.Now().Format(l.timeFormat)
-	l.errorLogger.Println(fmt.Sprintf("%s %s", datetime, err))
+	_ = l.errorLogger.Output(2, fmt.Sprintf("%s %s", datetime, err))
 }
 
 func (l *FmtLogger) Panic(err error) {
