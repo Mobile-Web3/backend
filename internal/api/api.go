@@ -78,12 +78,16 @@ func Run() {
 
 	accounts := account.NewService(chainRepository, cosmosClient)
 	transactions := transaction.NewService(gasAdjustment, chainRepository, cosmosClient)
-	handler := httphandler.New(&httphandler.Dependencies{
+	handler, err := httphandler.NewHandler(&httphandler.Dependencies{
 		Logger:             logger,
 		Repository:         chainRepository,
 		AccountService:     accounts,
 		TransactionService: transactions,
 	})
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {

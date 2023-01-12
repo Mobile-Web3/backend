@@ -10,13 +10,14 @@ import (
 	"github.com/Mobile-Web3/backend/internal/domain/transaction"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swagger "github.com/swaggo/http-swagger"
 )
 
 type handler[TResponse any] func(ctx context.Context) (TResponse, error)
 type requestHandler[TRequest any, TResponse any] func(ctx context.Context, request TRequest) (TResponse, error)
 
-func newHandler[TResponse any](handler handler[TResponse]) func(context *gin.Context) {
+func newHandler[TResponse any](handler handler[TResponse]) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		response, err := handler(context.Request.Context())
 		if err != nil {
@@ -28,7 +29,7 @@ func newHandler[TResponse any](handler handler[TResponse]) func(context *gin.Con
 	}
 }
 
-func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequest, TResponse]) func(context *gin.Context) {
+func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequest, TResponse]) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		var request TRequest
 		if err := context.BindJSON(&request); err != nil {
@@ -53,18 +54,27 @@ type Dependencies struct {
 	TransactionService *transaction.Service
 }
 
-func New(dependencies *Dependencies) http.Handler {
+func NewHandler(dependencies *Dependencies) (http.Handler, error) {
 	accountService := dependencies.AccountService
 	transactionService := dependencies.TransactionService
 	chainRepository := dependencies.Repository
 
+	err := initMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	gin.SetMode("release")
 	router := gin.New()
 	router.Use(recoverMiddleware(dependencies.Logger))
+
 	swaggerHandler := gin.WrapH(swagger.Handler(swagger.URL("doc.json")))
 	router.GET("/api/swagger/*any", swaggerHandler)
 
-	api := router.Group("/api")
+	prometheusHandler := gin.WrapH(promhttp.Handler())
+	router.GET("/metrics", prometheusHandler)
+
+	api := router.Group("/api", requestMetricsMiddleware)
 	{
 		accounts := api.Group("account")
 		{
@@ -86,5 +96,5 @@ func New(dependencies *Dependencies) http.Handler {
 		}
 	}
 
-	return router
+	return router, nil
 }

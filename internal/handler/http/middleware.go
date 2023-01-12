@@ -28,6 +28,7 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 				}
 
 				logger.Panic(value)
+				recoveredPanics.WithLabelValues(value.Error()).Inc()
 
 				if ne, ok := err.(*net.OpError); ok {
 					var se *os.SyscallError
@@ -44,4 +45,8 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 
 		context.Next()
 	}
+}
+
+func requestMetricsMiddleware(context *gin.Context) {
+	totalRequests.WithLabelValues(context.Request.URL.String()).Inc()
 }
