@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -12,8 +11,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
-
-var ErrUnsupportedCoinType = errors.New("unsupported coin type")
 
 func (c *Client) newTxFactory(chainID string) tx.Factory {
 	return tx.Factory{}.
@@ -25,7 +22,7 @@ func (c *Client) newTxFactory(chainID string) tx.Factory {
 func (c *Client) getAccount(ctx context.Context, address string, chainID string) (authtypes.AccountI, error) {
 	var header metadata.MD
 
-	grpcConn, err := c.GetGrpcConnection(ctx, chainID)
+	grpcConn, endpoint, err := c.GetGrpcConnection(ctx, chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -33,15 +30,21 @@ func (c *Client) getAccount(ctx context.Context, address string, chainID string)
 	queryClient := authtypes.NewQueryClient(grpcConn)
 	res, err := queryClient.Account(ctx, &authtypes.QueryAccountRequest{Address: address}, grpc.Header(&header))
 	if err != nil {
+		err = fmt.Errorf("get account info with endpoint: %s; %s", endpoint, err.Error())
+		c.logger.Error(err)
 		return nil, err
 	}
 	blockHeight := header.Get(grpctypes.GRPCBlockHeightHeader)
 	if l := len(blockHeight); l != 1 {
-		return nil, fmt.Errorf("unexpected '%s' header length; got %d, expected: %d", grpctypes.GRPCBlockHeightHeader, l, 1)
+		err = fmt.Errorf("error with parsing grpc header; grpc endpoint: %s; unexpected '%s' header length; got %d, expected: %d", endpoint, grpctypes.GRPCBlockHeightHeader, l, 1)
+		c.logger.Error(err)
+		return nil, err
 	}
 
 	var acc authtypes.AccountI
 	if err = c.interfaceRegistry.UnpackAny(res.Account, &acc); err != nil {
+		err = fmt.Errorf("unpacking grpc response with interface registry; grpc endpoint: %s; %s", endpoint, err.Error())
+		c.logger.Error(err)
 		return nil, err
 	}
 

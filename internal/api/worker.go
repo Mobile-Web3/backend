@@ -5,20 +5,17 @@ import (
 	"time"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
-	"github.com/Mobile-Web3/backend/pkg/log"
 )
 
 type Worker struct {
 	interval     time.Duration
 	timer        *time.Timer
-	logger       log.Logger
 	chainService *chain.Service
 }
 
-func NewWorker(interval time.Duration, logger log.Logger, chainService *chain.Service) *Worker {
+func NewWorker(interval time.Duration, chainService *chain.Service) *Worker {
 	worker := &Worker{
 		interval:     interval,
-		logger:       logger,
 		chainService: chainService,
 	}
 
@@ -32,9 +29,7 @@ func (w *Worker) Start() {
 
 	w.timer = time.AfterFunc(w.interval, func() {
 		w.timer.Stop()
-		if err := w.chainService.UpdateChainInfo(context.Background()); err != nil {
-			w.logger.Error(err)
-		}
+		_ = w.chainService.UpdateChainInfo(context.Background())
 		w.timer.Reset(w.interval)
 	})
 }

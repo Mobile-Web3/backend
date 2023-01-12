@@ -52,14 +52,14 @@ func Run() {
 	}
 
 	chainRepository := memory.NewChainRepository()
-	chainRegistryClient := github.NewChainRegistryClient()
+	chainRegistryClient := github.NewChainRegistryClient(logger)
 	chainService := chain.NewService(chainRegistryClient, chainRepository)
 	if err = chainService.UpdateChainInfo(context.Background()); err != nil {
 		logger.Error(err)
 		return
 	}
 
-	cosmosClient, err := client.NewClient("direct", rpcLifetime, chainRepository.GetRPCEndpoints)
+	cosmosClient, err := client.NewClient("direct", rpcLifetime, logger, chainRepository.GetRPCEndpoints)
 	if err != nil {
 		logger.Error(err)
 		return
@@ -76,8 +76,8 @@ func Run() {
 		return
 	}
 
-	accounts := account.NewService(chainRepository, cosmosClient)
-	transactions := transaction.NewService(gasAdjustment, chainRepository, cosmosClient)
+	accounts := account.NewService(logger, chainRepository, cosmosClient)
+	transactions := transaction.NewService(gasAdjustment, logger, chainRepository, cosmosClient)
 	handler, err := httphandler.NewHandler(&httphandler.Dependencies{
 		Logger:             logger,
 		Repository:         chainRepository,
@@ -95,7 +95,7 @@ func Run() {
 		return
 	}
 
-	worker := NewWorker(time.Hour*12, logger, chainService)
+	worker := NewWorker(time.Hour*12, chainService)
 	worker.Start()
 	server := http.New(port, logger, handler)
 	go server.Start()

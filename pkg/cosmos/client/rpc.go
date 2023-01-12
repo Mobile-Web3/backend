@@ -54,17 +54,17 @@ func (c *Client) getChainState(chainID string) *chainState {
 func (c *Client) initChainState(chainID string, rpcEndpoints []string) *chainState {
 	c.chainMutex.Lock()
 	defer c.chainMutex.Unlock()
-	state := newChainState(chainID, c.rpcLifetime, rpcEndpoints)
+	state := newChainState(chainID, c.rpcLifetime, c.logger, rpcEndpoints)
 	c.chains[chainID] = state
 	return state
 }
 
-func (c *Client) GetChainRPC(ctx context.Context, chainID string) (*http.HTTP, error) {
+func (c *Client) GetChainRPC(ctx context.Context, chainID string) (*http.HTTP, string, error) {
 	state := c.getChainState(chainID)
 	if state == nil {
 		endpoints, err := c.getRPCEndpointHandler(ctx, chainID)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		state = c.initChainState(chainID, endpoints)

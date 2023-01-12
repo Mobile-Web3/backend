@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
@@ -17,6 +18,8 @@ var ErrSignModeUnknown = errors.New("unknown sign mode")
 type GetRPCEndpointHandler func(ctx context.Context, chainID string) ([]string, error)
 
 type Client struct {
+	logger log.Logger
+
 	interfaceRegistry types.InterfaceRegistry
 	codec             codec.Codec
 	txConfig          client.TxConfig
@@ -31,7 +34,7 @@ type Client struct {
 	getRPCEndpointHandler GetRPCEndpointHandler
 }
 
-func NewClient(signMode string, rpcLifetime time.Duration, getRPCEndpointHandler GetRPCEndpointHandler) (*Client, error) {
+func NewClient(signMode string, rpcLifetime time.Duration, logger log.Logger, getRPCEndpointHandler GetRPCEndpointHandler) (*Client, error) {
 	codecData := makeCodec()
 
 	mode := signing.SignMode_SIGN_MODE_UNSPECIFIED
@@ -45,6 +48,8 @@ func NewClient(signMode string, rpcLifetime time.Duration, getRPCEndpointHandler
 	}
 
 	return &Client{
+		logger: logger,
+
 		interfaceRegistry: codecData.InterfaceRegistry,
 		codec:             codecData.Marshaler,
 		txConfig:          codecData.TxConfig,

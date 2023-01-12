@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
@@ -25,23 +26,25 @@ import (
 
 var protoCodec = encoding.GetCodec(proto.Name)
 
-func (c *Client) GetGrpcConnection(ctx context.Context, chainID string) (grpc2.ClientConn, error) {
-	rpcClient, err := c.GetChainRPC(ctx, chainID)
+func (c *Client) GetGrpcConnection(ctx context.Context, chainID string) (grpc2.ClientConn, string, error) {
+	rpcClient, endpoint, err := c.GetChainRPC(ctx, chainID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return newGrpcConnection(rpcClient, c.interfaceRegistry, c.codec), nil
+	return newGrpcConnection(c.logger, rpcClient, c.interfaceRegistry, c.codec), endpoint, nil
 }
 
 type grpcConnection struct {
+	logger            log.Logger
 	rpcClient         *http.HTTP
 	interfaceRegistry types.InterfaceRegistry
 	codec             codec.Codec
 }
 
-func newGrpcConnection(rpc *http.HTTP, interfaceRegistry types.InterfaceRegistry, codec codec.Codec) *grpcConnection {
+func newGrpcConnection(logger log.Logger, rpc *http.HTTP, interfaceRegistry types.InterfaceRegistry, codec codec.Codec) *grpcConnection {
 	return &grpcConnection{
+		logger:            logger,
 		rpcClient:         rpc,
 		interfaceRegistry: interfaceRegistry,
 		codec:             codec,
@@ -60,6 +63,8 @@ func (c *grpcConnection) Invoke(ctx context.Context, method string, req, reply i
 	}
 
 	if err = protoCodec.Unmarshal(abciRes.Value, reply); err != nil {
+		err = fmt.Errorf("unmarshaling grpc reply; %s", err.Error())
+		c.logger.Error(err)
 		return err
 	}
 
@@ -73,7 +78,13 @@ func (c *grpcConnection) Invoke(ctx context.Context, method string, req, reply i
 	}
 
 	if c.interfaceRegistry != nil {
-		return types.UnpackInterfaces(reply, c.codec)
+		if err = types.UnpackInterfaces(reply, c.codec); err != nil {
+			err = fmt.Errorf("unpacking reply interfaces with codec; %s", err.Error())
+			c.logger.Error(err)
+			return err
+		}
+
+		return nil
 	}
 
 	return nil
@@ -98,6 +109,8 @@ func getProveFromMetadata(md metadata.MD) (bool, error) {
 func (c *grpcConnection) RunGRPCQuery(ctx context.Context, method string, req interface{}, md metadata.MD) (abci.ResponseQuery, metadata.MD, error) {
 	reqBz, err := protoCodec.Marshal(req)
 	if err != nil {
+		err = fmt.Errorf("run grpc query; %s", err.Error())
+		c.logger.Error(err)
 		return abci.ResponseQuery{}, nil, err
 	}
 
@@ -105,22 +118,27 @@ func (c *grpcConnection) RunGRPCQuery(ctx context.Context, method string, req in
 	if heights := md.Get(grpctypes.GRPCBlockHeightHeader); len(heights) > 0 {
 		height, err := strconv.ParseInt(heights[0], 10, 64)
 		if err != nil {
+			c.logger.Error(err)
 			return abci.ResponseQuery{}, nil, err
 		}
 		if height < 0 {
-			return abci.ResponseQuery{}, nil, sdkerrors.Wrapf(
+			err = sdkerrors.Wrapf(
 				sdkerrors.ErrInvalidRequest,
 				"client.Context.Invoke: height (%d) from %q must be >= 0", height, grpctypes.GRPCBlockHeightHeader)
+			c.logger.Error(err)
+			return abci.ResponseQuery{}, nil, err
 		}
 	}
 
 	height, err := getHeightFromMetadata(md)
 	if err != nil {
+		c.logger.Error(err)
 		return abci.ResponseQuery{}, nil, err
 	}
 
 	prove, err := getProveFromMetadata(md)
 	if err != nil {
+		c.logger.Error(err)
 		return abci.ResponseQuery{}, nil, err
 	}
 
@@ -185,11 +203,15 @@ func (c *grpcConnection) QueryABCI(ctx context.Context, req abci.RequestQuery) (
 
 	result, err := c.rpcClient.ABCIQueryWithOptions(ctx, req.Path, req.Data, opts)
 	if err != nil {
+		err = fmt.Errorf("abci quering; %s", err.Error())
+		c.logger.Error(err)
 		return abci.ResponseQuery{}, err
 	}
 
 	if !result.Response.IsOK() {
-		return abci.ResponseQuery{}, sdkErrorToGRPCError(result.Response)
+		err = fmt.Errorf("rpc error response; %s", sdkErrorToGRPCError(result.Response))
+		c.logger.Error(err)
+		return abci.ResponseQuery{}, err
 	}
 
 	// data from trusted node or subspace query doesn't need verification

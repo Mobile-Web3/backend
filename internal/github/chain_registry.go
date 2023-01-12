@@ -11,20 +11,23 @@ import (
 	"time"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
+	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/google/go-github/v49/github"
 )
 
 var errBadResponse = errors.New("chain-registry repository respond with bad status")
 
 type ChainRegistryClient struct {
+	logger log.Logger
 	client *github.Client
 }
 
-func NewChainRegistryClient() *ChainRegistryClient {
+func NewChainRegistryClient(logger log.Logger) *ChainRegistryClient {
 	httpClient := &http.Client{
 		Timeout: time.Second * 10,
 	}
 	return &ChainRegistryClient{
+		logger: logger,
 		client: github.NewClient(httpClient),
 	}
 }
@@ -37,9 +40,12 @@ func (c *ChainRegistryClient) UploadChainInfo(ctx context.Context) ([]chain.Chai
 		"master",
 		false)
 	if err != nil {
+		c.logger.Error(err)
 		return nil, err
 	}
 	if res.StatusCode != 200 {
+		err = fmt.Errorf("bad request from github; status code: %d", res.StatusCode)
+		c.logger.Error(err)
 		return nil, errBadResponse
 	}
 
@@ -94,6 +100,7 @@ func (c *ChainRegistryClient) uploadChain(chainURL string, assetURL string, stor
 	defer wg.Done()
 	response, err := http.Get(chainURL)
 	if err != nil {
+		c.logger.Error(err)
 		storage.addChain(chain.Chain{}, err)
 		return
 	}
@@ -107,6 +114,7 @@ func (c *ChainRegistryClient) uploadChain(chainURL string, assetURL string, stor
 	chainData := chain.Chain{}
 	decoder := json.NewDecoder(response.Body)
 	if err = decoder.Decode(&chainData); err != nil {
+		c.logger.Error(err)
 		storage.addChain(chain.Chain{}, err)
 		return
 	}
@@ -114,6 +122,7 @@ func (c *ChainRegistryClient) uploadChain(chainURL string, assetURL string, stor
 	if chainData.Slip44 == 118 || chainData.Slip44 == 60 {
 		assetResponse, err := http.Get(assetURL)
 		if err != nil {
+			c.logger.Error(err)
 			storage.addChain(chain.Chain{}, err)
 			return
 		}
@@ -127,6 +136,7 @@ func (c *ChainRegistryClient) uploadChain(chainURL string, assetURL string, stor
 		asset := assets{}
 		assetDecoder := json.NewDecoder(assetResponse.Body)
 		if err = assetDecoder.Decode(&asset); err != nil {
+			c.logger.Error(err)
 			storage.addChain(chain.Chain{}, err)
 			return
 		}
@@ -144,6 +154,7 @@ func (c *ChainRegistryClient) uploadChain(chainURL string, assetURL string, stor
 
 		rpc, err := chain.ValidateRPCUrls(chainData.Api.Rpc)
 		if err != nil {
+			c.logger.Error(err)
 			storage.addChain(chain.Chain{}, err)
 			return
 		}

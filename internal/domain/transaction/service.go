@@ -7,6 +7,7 @@ import (
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
+	"github.com/Mobile-Web3/backend/pkg/log"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -16,13 +17,15 @@ import (
 
 type Service struct {
 	gasAdjustment   float64
+	logger          log.Logger
 	chainRepository chain.Repository
 	cosmosClient    *client.Client
 }
 
-func NewService(gasAdjustment float64, chainRepository chain.Repository, cosmosClient *client.Client) *Service {
+func NewService(gasAdjustment float64, logger log.Logger, chainRepository chain.Repository, cosmosClient *client.Client) *Service {
 	return &Service{
 		gasAdjustment:   gasAdjustment,
+		logger:          logger,
 		chainRepository: chainRepository,
 		cosmosClient:    cosmosClient,
 	}
@@ -51,21 +54,28 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 
 	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
 	if err != nil {
+		err = fmt.Errorf("chain: %s; %s", fromChain.Name, err.Error())
+		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
 	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
 	if err != nil {
+		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.Amount, denom, err.Error())
+		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
 	gasPrice, err := chain.FromDisplayToBase(input.GasPrice, denom, exponent)
 	if err != nil {
+		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.GasPrice, denom, err.Error())
+		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
 	coins, err := sdk.ParseCoinNormalized(amount)
 	if err != nil {
+		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
@@ -88,18 +98,21 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 		return SendResponse{}, err
 	}
 
-	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
+	rpcClient, endpoint, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
 	if err != nil {
 		return SendResponse{}, err
 	}
 
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
+		err = fmt.Errorf("broadcasting tx sync with endpoint: %s; %s", endpoint, err.Error())
+		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
 	if response.Code != 0 {
 		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s", response.Code, response.Hash.String())
+		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
@@ -132,16 +145,21 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 
 	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
 	if err != nil {
+		err = fmt.Errorf("chain: %s; %s", fromChain.Name, err.Error())
+		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}
 
 	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
 	if err != nil {
+		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.Amount, denom, err.Error())
+		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}
 
 	coins, err := sdk.ParseCoinNormalized(amount)
 	if err != nil {
+		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}
 
@@ -172,24 +190,30 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 		Prove:  simQuery.Prove,
 	}
 
-	rpcClient, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
+	rpcClient, endpoint, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
 	if err != nil {
 		return SimulateResponse{}, err
 	}
 
 	response, err := rpcClient.ABCIQueryWithOptions(ctx, simQuery.Path, simQuery.Data, opts)
 	if err != nil {
+		err = fmt.Errorf("abci quering with rpc endpoint: %s; %s", endpoint, err.Error())
+		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}
 
 	if response.Response.Code != 0 {
-		return SimulateResponse{}, fmt.Errorf("transaction failed with code %d. log: %s",
+		err = fmt.Errorf("transaction failed with code %d. log: %s",
 			response.Response.Code,
 			response.Response.Log)
+		s.logger.Error(err)
+		return SimulateResponse{}, err
 	}
 
 	var result txtypes.SimulateResponse
 	if err = result.Unmarshal(response.Response.Value); err != nil {
+		err = fmt.Errorf("unmarshaling rpc response from endpoint: %s; %s", endpoint, err.Error())
+		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}
 

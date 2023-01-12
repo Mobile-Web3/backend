@@ -2,7 +2,7 @@ package client
 
 import (
 	"encoding/hex"
-	"errors"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -13,8 +13,6 @@ import (
 	ethhd "github.com/evmos/ethermint/crypto/hd"
 )
 
-var ErrInvalidMnemonicSize = errors.New("invalid mnemonic size, available values: 12, 24")
-
 func (c *Client) CreateMnemonic(mnemonicSize uint8) (string, error) {
 	var entropySize int
 	switch mnemonicSize {
@@ -23,16 +21,22 @@ func (c *Client) CreateMnemonic(mnemonicSize uint8) (string, error) {
 	case 24:
 		entropySize = 256
 	default:
-		return "", ErrInvalidMnemonicSize
+		err := fmt.Errorf("invalid mnemonic size, available values: 12, 24; provided size %d", mnemonicSize)
+		c.logger.Error(err)
+		return "", err
 	}
 
 	entropy, err := bip39.NewEntropy(entropySize)
 	if err != nil {
+		err = fmt.Errorf("creating entropy with size %d; %s", entropySize, err.Error())
+		c.logger.Error(err)
 		return "", err
 	}
 
 	mnemonic, err := bip39.NewMnemonic(entropy)
 	if err != nil {
+		err = fmt.Errorf("creating mnemonic; %s", err.Error())
+		c.logger.Error(err)
 		return "", err
 	}
 
@@ -47,12 +51,16 @@ func (c *Client) CreateAccountFromMnemonic(mnemonic string, passphrase string, c
 	case 60:
 		algo = keyring.SignatureAlgo(ethhd.EthSecp256k1)
 	default:
-		return nil, ErrUnsupportedCoinType
+		err := fmt.Errorf("unsupported coin type; provided coin type %d", coinType)
+		c.logger.Error(err)
+		return nil, err
 	}
 
 	path := hd.CreateHDPath(coinType, account, index)
 	derivedKey, err := algo.Derive()(mnemonic, passphrase, path.String())
 	if err != nil {
+		err = fmt.Errorf("deriving key; %s", err.Error())
+		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -62,6 +70,8 @@ func (c *Client) CreateAccountFromMnemonic(mnemonic string, passphrase string, c
 func (c *Client) CreateAccountFromHexKey(key string) (types.PrivKey, error) {
 	keyBytes, err := hex.DecodeString(key)
 	if err != nil {
+		err = fmt.Errorf("decoding hexstring key; %s", err.Error())
+		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -71,5 +81,12 @@ func (c *Client) CreateAccountFromHexKey(key string) (types.PrivKey, error) {
 }
 
 func (c *Client) ConvertAddressPrefix(chainPrefix string, address types.Address) (string, error) {
-	return sdk.Bech32ifyAddressBytes(chainPrefix, address)
+	result, err := sdk.Bech32ifyAddressBytes(chainPrefix, address)
+	if err != nil {
+		err = fmt.Errorf("converting cosmos address %s with prefix %s; %s", address, chainPrefix, err.Error())
+		c.logger.Error(err)
+		return "", err
+	}
+
+	return result, nil
 }
