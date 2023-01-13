@@ -5,11 +5,12 @@ go 1.18
 require (
 	github.com/cosmos/cosmos-sdk v0.46.4
 	github.com/cosmos/go-bip39 v1.0.0
-	github.com/cosmos/ibc-go/v5 v5.1.0
+	github.com/cosmos/ibc-go/v5 v5.0.0-beta1
 	github.com/evmos/ethermint v0.6.1-0.20220810122651-42abb259cbed
 	github.com/gin-gonic/gin v1.8.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/google/go-github/v49 v49.0.0
+	github.com/paulbellamy/ratecounter v0.2.0
 	github.com/swaggo/http-swagger v1.3.3
 	github.com/swaggo/swag v1.8.8
 	github.com/tendermint/tendermint v0.34.23

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Mobile-Web3/backend/internal/metrics"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/gin-gonic/gin"
 )
@@ -27,8 +28,8 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 					value = errors.New("unknown error")
 				}
 
+				metrics.PanicsCounter.Incr(1)
 				logger.Panic(value)
-				recoveredPanics.WithLabelValues(value.Error()).Inc()
 
 				if ne, ok := err.(*net.OpError); ok {
 					var se *os.SyscallError
@@ -47,6 +48,6 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 	}
 }
 
-func requestMetricsMiddleware(context *gin.Context) {
-	totalRequests.WithLabelValues(context.Request.URL.String()).Inc()
+func metricsMiddleware(_ *gin.Context) {
+	metrics.RpsCounter.Incr(1)
 }
