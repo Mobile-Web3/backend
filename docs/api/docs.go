@@ -499,6 +499,9 @@ const docTemplate = `{
             "properties": {
                 "txHash": {
                     "type": "string"
+                },
+                "withEvents": {
+                    "type": "boolean"
                 }
             }
         },

@@ -15,6 +15,7 @@ import (
 
 var ErrSignModeUnknown = errors.New("unknown sign mode")
 
+type TxEventHandler func(ctx context.Context, txEvent TxEvent) error
 type GetRPCEndpointHandler func(ctx context.Context, chainID string) ([]string, error)
 
 type Client struct {
@@ -31,10 +32,16 @@ type Client struct {
 
 	signMode signing.SignMode
 
+	txEventHandler        TxEventHandler
 	getRPCEndpointHandler GetRPCEndpointHandler
 }
 
-func NewClient(signMode string, rpcLifetime time.Duration, logger log.Logger, getRPCEndpointHandler GetRPCEndpointHandler) (*Client, error) {
+func NewClient(
+	signMode string,
+	rpcLifetime time.Duration,
+	logger log.Logger,
+	txEventHandler TxEventHandler,
+	getRPCEndpointHandler GetRPCEndpointHandler) (*Client, error) {
 	codecData := makeCodec()
 
 	mode := signing.SignMode_SIGN_MODE_UNSPECIFIED
@@ -60,6 +67,7 @@ func NewClient(signMode string, rpcLifetime time.Duration, logger log.Logger, ge
 		chains:      make(map[string]*chainState),
 		signMode:    mode,
 
+		txEventHandler:        txEventHandler,
 		getRPCEndpointHandler: getRPCEndpointHandler,
 	}, nil
 }

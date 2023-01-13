@@ -12,11 +12,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
-	grpc2 "github.com/gogo/protobuf/grpc"
+	"github.com/gogo/protobuf/grpc"
 	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	"github.com/tendermint/tendermint/rpc/client/http"
-	"google.golang.org/grpc"
+	tendermint "github.com/tendermint/tendermint/rpc/client"
+	googlerpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
@@ -26,7 +26,7 @@ import (
 
 var protoCodec = encoding.GetCodec(proto.Name)
 
-func (c *Client) GetGrpcConnection(ctx context.Context, chainID string) (grpc2.ClientConn, string, error) {
+func (c *Client) GetGrpcConnection(ctx context.Context, chainID string) (grpc.ClientConn, string, error) {
 	rpcClient, endpoint, err := c.GetChainRPC(ctx, chainID)
 	if err != nil {
 		return nil, "", err
@@ -37,25 +37,25 @@ func (c *Client) GetGrpcConnection(ctx context.Context, chainID string) (grpc2.C
 
 type grpcConnection struct {
 	logger            log.Logger
-	rpcClient         *http.HTTP
+	rpcClient         tendermint.Client
 	interfaceRegistry types.InterfaceRegistry
 	codec             codec.Codec
 }
 
-func newGrpcConnection(logger log.Logger, rpc *http.HTTP, interfaceRegistry types.InterfaceRegistry, codec codec.Codec) *grpcConnection {
+func newGrpcConnection(logger log.Logger, rpcClient tendermint.Client, interfaceRegistry types.InterfaceRegistry, codec codec.Codec) *grpcConnection {
 	return &grpcConnection{
 		logger:            logger,
-		rpcClient:         rpc,
+		rpcClient:         rpcClient,
 		interfaceRegistry: interfaceRegistry,
 		codec:             codec,
 	}
 }
 
-func (c *grpcConnection) NewStream(context.Context, *grpc.StreamDesc, string, ...grpc.CallOption) (grpc.ClientStream, error) {
+func (c *grpcConnection) NewStream(context.Context, *googlerpc.StreamDesc, string, ...googlerpc.CallOption) (googlerpc.ClientStream, error) {
 	return nil, fmt.Errorf("streaming rpc not supported")
 }
 
-func (c *grpcConnection) Invoke(ctx context.Context, method string, req, reply interface{}, opts ...grpc.CallOption) (err error) {
+func (c *grpcConnection) Invoke(ctx context.Context, method string, req, reply interface{}, opts ...googlerpc.CallOption) (err error) {
 	inMd, _ := metadata.FromOutgoingContext(ctx)
 	abciRes, outMd, err := c.RunGRPCQuery(ctx, method, req, inMd)
 	if err != nil {
@@ -69,7 +69,7 @@ func (c *grpcConnection) Invoke(ctx context.Context, method string, req, reply i
 	}
 
 	for _, callOpt := range opts {
-		header, ok := callOpt.(grpc.HeaderCallOption)
+		header, ok := callOpt.(googlerpc.HeaderCallOption)
 		if !ok {
 			continue
 		}

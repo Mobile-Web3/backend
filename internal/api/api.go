@@ -59,7 +59,7 @@ func Run() {
 		return
 	}
 
-	cosmosClient, err := client.NewClient("direct", rpcLifetime, logger, chainRepository.GetRPCEndpoints)
+	cosmosClient, err := client.NewClient("direct", rpcLifetime, logger, nil, chainRepository.GetRPCEndpoints)
 	if err != nil {
 		logger.Error(err)
 		return

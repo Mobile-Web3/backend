@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/Mobile-Web3/backend/pkg/log"
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/tendermint/tendermint/rpc/client/http"
+	tendermint "github.com/tendermint/tendermint/rpc/client"
 )
 
 var errNoAvailableRPC = errors.New("no available rpc")
@@ -19,21 +18,21 @@ type chainState struct {
 	logger           log.Logger
 	chainID          string
 	mutex            sync.RWMutex
-	rpc              []string
+	getRpc           GetRPCEndpointHandler
 	rpcEndpoint      string
-	rpcClient        *http.HTTP
+	rpcClient        tendermint.Client
 	isConnectionInit bool
 	rpcLifetime      time.Duration
 	rpcTimer         *time.Timer
 }
 
-func newChainState(chainID string, lifetime time.Duration, logger log.Logger, rpc []string) *chainState {
+func newChainState(chainID string, lifetime time.Duration, logger log.Logger, getRpcHandler GetRPCEndpointHandler) *chainState {
 	state := &chainState{
 		logger:      logger,
 		chainID:     chainID,
 		mutex:       sync.RWMutex{},
-		rpc:         rpc,
 		rpcLifetime: lifetime,
+		getRpc:      getRpcHandler,
 	}
 
 	state.rpcTimer = time.AfterFunc(lifetime, state.invalidateRPC)
@@ -41,7 +40,7 @@ func newChainState(chainID string, lifetime time.Duration, logger log.Logger, rp
 	return state
 }
 
-func (s *chainState) GetActiveRPC(ctx context.Context) (*http.HTTP, string, error) {
+func (s *chainState) GetActiveRPC(ctx context.Context) (tendermint.Client, string, error) {
 	s.mutex.RLock()
 	if s.isConnectionInit {
 		s.mutex.RUnlock()
@@ -69,7 +68,7 @@ func (s *endpointStorage) addEndpoint(endpoint string) {
 	s.mutex.Unlock()
 }
 
-func (s *chainState) initHealthRPC(ctx context.Context) (*http.HTTP, string, error) {
+func (s *chainState) initHealthRPC(ctx context.Context) (tendermint.Client, string, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -77,7 +76,12 @@ func (s *chainState) initHealthRPC(ctx context.Context) (*http.HTTP, string, err
 	wg := &sync.WaitGroup{}
 	storage := &endpointStorage{}
 
-	for _, endpoint := range s.rpc {
+	rpc, err := s.getRpc(ctx, s.chainID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	for _, endpoint := range rpc {
 		wg.Add(1)
 		go checkHealthRPC(ctx, endpoint, storage, wg)
 	}
@@ -96,7 +100,7 @@ func (s *chainState) initHealthRPC(ctx context.Context) (*http.HTTP, string, err
 		endpoint = storage.endpoints[rand.New(rand.NewSource(time.Now().UnixNano())).Intn(n)]
 	}
 
-	rpcClient, err := client.NewClientFromNode(endpoint)
+	rpcClient, err := newNodeRPCClient(endpoint)
 	if err != nil {
 		err = fmt.Errorf("creating node with endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)

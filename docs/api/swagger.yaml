@@ -114,6 +114,8 @@ definitions:
     properties:
       txHash:
         type: string
+      withEvents:
+        type: boolean
     type: object
   transaction.SimulateInput:
     properties:

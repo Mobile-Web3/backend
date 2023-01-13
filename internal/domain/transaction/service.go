@@ -43,7 +43,8 @@ type SendInput struct {
 }
 
 type SendResponse struct {
-	TxHash string `json:"txHash"`
+	TxHash     string `json:"txHash"`
+	WithEvents bool   `json:"withEvents"`
 }
 
 func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendResponse, error) {
@@ -103,6 +104,11 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 		return SendResponse{}, err
 	}
 
+	withEvents := true
+	if err = s.cosmosClient.SubscribeForTx(ctx, fromChain.ID, input.From); err != nil {
+		withEvents = false
+	}
+
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
 		err = fmt.Errorf("broadcasting tx sync with endpoint: %s; %s", endpoint, err.Error())
@@ -117,7 +123,8 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 	}
 
 	return SendResponse{
-		TxHash: response.Hash.String(),
+		TxHash:     response.Hash.String(),
+		WithEvents: withEvents,
 	}, nil
 }
 
