@@ -2,3 +2,4 @@
 chain-registry
 go.sum
 .env
+firebase-key.json

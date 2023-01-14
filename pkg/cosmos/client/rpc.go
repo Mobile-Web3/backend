@@ -95,7 +95,7 @@ type TxEvent struct {
 	GasWanted int64
 }
 
-func (c *Client) listenTxEvents(ctx context.Context, chainClient tendermint.Client, ch <-chan ctypes.ResultEvent) {
+func (c *Client) listenTxEvents(ctx context.Context, token string, chainClient tendermint.Client, ch <-chan ctypes.ResultEvent) {
 	defer chainClient.Stop()
 	event, ok := <-ch
 	if !ok {
@@ -110,10 +110,10 @@ func (c *Client) listenTxEvents(ctx context.Context, chainClient tendermint.Clie
 		GasUsed:   txData.Result.GasUsed,
 		GasWanted: txData.Result.GasWanted,
 	}
-	_ = c.txEventHandler(ctx, txEvent)
+	_ = c.txEventHandler(ctx, token, txEvent)
 }
 
-func (c *Client) SubscribeForTx(ctx context.Context, chainID string, address string) error {
+func (c *Client) SubscribeForTx(ctx context.Context, token string, chainID string, address string) error {
 	if c.txEventHandler == nil {
 		return ErrNilTxEventHandler
 	}
@@ -143,6 +143,6 @@ func (c *Client) SubscribeForTx(ctx context.Context, chainID string, address str
 		return err
 	}
 
-	go c.listenTxEvents(ctx, chainClient, eventsChannel)
+	go c.listenTxEvents(ctx, token, chainClient, eventsChannel)
 	return nil
 }

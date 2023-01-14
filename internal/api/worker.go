@@ -2,38 +2,44 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
+	"github.com/Mobile-Web3/backend/pkg/log"
+	"github.com/robfig/cron/v3"
 )
 
 type Worker struct {
-	interval     time.Duration
-	timer        *time.Timer
+	logger       log.Logger
 	chainService *chain.Service
+	scheduler    *cron.Cron
+	jobID        cron.EntryID
 }
 
-func NewWorker(interval time.Duration, chainService *chain.Service) *Worker {
+func NewWorker(logger log.Logger, chainService *chain.Service) *Worker {
 	worker := &Worker{
-		interval:     interval,
+		logger:       logger,
+		scheduler:    cron.New(),
 		chainService: chainService,
 	}
 
 	return worker
 }
 
-func (w *Worker) Start() {
-	if w.timer != nil {
-		w.timer.Stop()
+func (w *Worker) Start() error {
+	jobID, err := w.scheduler.AddFunc("0 0 * * *", func() {
+		_ = w.chainService.UpdateChainInfo(context.Background())
+		w.logger.Info("cron worked out")
+	})
+	if err != nil {
+		return err
 	}
 
-	w.timer = time.AfterFunc(w.interval, func() {
-		w.timer.Stop()
-		_ = w.chainService.UpdateChainInfo(context.Background())
-		w.timer.Reset(w.interval)
-	})
+	w.jobID = jobID
+	w.scheduler.Start()
+	return nil
 }
 
 func (w *Worker) Stop() {
-	w.timer.Stop()
+	w.scheduler.Remove(w.jobID)
+	w.scheduler.Stop()
 }

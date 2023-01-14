@@ -110,7 +110,33 @@ definitions:
       to:
         type: string
     type: object
+  transaction.SendInputFirebase:
+    properties:
+      amount:
+        type: string
+      chainId:
+        type: string
+      firebaseToken:
+        type: string
+      from:
+        type: string
+      gasAdjusted:
+        type: string
+      gasPrice:
+        type: string
+      key:
+        type: string
+      memo:
+        type: string
+      to:
+        type: string
+    type: object
   transaction.SendResponse:
+    properties:
+      txHash:
+        type: string
+    type: object
+  transaction.SendResponseFirebase:
     properties:
       txHash:
         type: string
@@ -298,6 +324,33 @@ paths:
                   $ref: '#/definitions/transaction.SendResponse'
               type: object
       summary: Отправить транзакцию
+      tags:
+      - transaction
+  /transaction/send/firebase:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/transaction.SendInputFirebase'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.apiResponse'
+            - properties:
+                result:
+                  $ref: '#/definitions/transaction.SendResponseFirebase'
+              type: object
+      summary: Отправить транзакцию с подпиской на события тендерминта с пушами в
+        firebase
       tags:
       - transaction
   /transaction/simulate:

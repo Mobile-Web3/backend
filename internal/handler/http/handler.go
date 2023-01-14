@@ -106,6 +106,7 @@ func NewHandler(dependencies *Dependencies) (http.Handler, error) {
 		transactions := api.Group("transaction")
 		{
 			transactions.POST("send", newRequestHandler(transactionService.SendTransaction, logger))
+			transactions.POST("send/firebase", newRequestHandler(transactionService.SendTransactionWithEvents, logger))
 			transactions.POST("simulate", newRequestHandler(transactionService.SimulateTransaction, logger))
 		}
 	}

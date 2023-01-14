@@ -15,7 +15,7 @@ import (
 
 var ErrSignModeUnknown = errors.New("unknown sign mode")
 
-type TxEventHandler func(ctx context.Context, txEvent TxEvent) error
+type TxEventHandler func(ctx context.Context, token string, txEvent TxEvent) error
 type GetRPCEndpointHandler func(ctx context.Context, chainID string) ([]string, error)
 
 type Client struct {

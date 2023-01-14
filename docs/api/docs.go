@@ -278,6 +278,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/transaction/send/firebase": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transaction"
+                ],
+                "summary": "Отправить транзакцию с подпиской на события тендерминта с пушами в firebase",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/transaction.SendInputFirebase"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.apiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/transaction.SendResponseFirebase"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/transaction/simulate": {
             "post": {
                 "consumes": [
@@ -494,7 +539,47 @@ const docTemplate = `{
                 }
             }
         },
+        "transaction.SendInputFirebase": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "chainId": {
+                    "type": "string"
+                },
+                "firebaseToken": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "gasAdjusted": {
+                    "type": "string"
+                },
+                "gasPrice": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
         "transaction.SendResponse": {
+            "type": "object",
+            "properties": {
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "transaction.SendResponseFirebase": {
             "type": "object",
             "properties": {
                 "txHash": {

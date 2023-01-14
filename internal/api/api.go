@@ -14,6 +14,7 @@ import (
 	"github.com/Mobile-Web3/backend/internal/domain/account"
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/internal/domain/transaction"
+	"github.com/Mobile-Web3/backend/internal/firebase"
 	"github.com/Mobile-Web3/backend/internal/github"
 	httphandler "github.com/Mobile-Web3/backend/internal/handler/http"
 	"github.com/Mobile-Web3/backend/internal/server/http"
@@ -23,8 +24,9 @@ import (
 )
 
 var (
-	errEmptyGasAdjustment = errors.New("empty GAS_ADJUSTMENT env")
-	errEmptyPort          = errors.New("empty PORT env")
+	errEmptyGasAdjustment  = errors.New("empty GAS_ADJUSTMENT env")
+	errEmptyPort           = errors.New("empty PORT env")
+	errFirebaseEmptyConfig = errors.New("empty FIREBASE_KEY_PATH env")
 )
 
 // @title           Swagger UI
@@ -59,7 +61,19 @@ func Run() {
 		return
 	}
 
-	cosmosClient, err := client.NewClient("direct", rpcLifetime, logger, nil, chainRepository.GetRPCEndpoints)
+	firebaseConfigPath := os.Getenv("FIREBASE_KEY_PATH")
+	if firebaseConfigPath == "" {
+		logger.Error(errFirebaseEmptyConfig)
+		return
+	}
+
+	firebaseCloudMessaging, err := firebase.NewCloudMessagingClient(firebaseConfigPath, logger)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	cosmosClient, err := client.NewClient("direct", rpcLifetime, logger, firebaseCloudMessaging.SendTxResult, chainRepository.GetRPCEndpoints)
 	if err != nil {
 		logger.Error(err)
 		return
@@ -95,8 +109,12 @@ func Run() {
 		return
 	}
 
-	worker := NewWorker(time.Hour*12, chainService)
-	worker.Start()
+	worker := NewWorker(logger, chainService)
+	if err = worker.Start(); err != nil {
+		logger.Error(err)
+		return
+	}
+
 	server := http.New(port, logger, handler)
 	go server.Start()
 

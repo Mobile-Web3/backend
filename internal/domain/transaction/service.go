@@ -43,8 +43,7 @@ type SendInput struct {
 }
 
 type SendResponse struct {
-	TxHash     string `json:"txHash"`
-	WithEvents bool   `json:"withEvents"`
+	TxHash string `json:"txHash"`
 }
 
 func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendResponse, error) {
@@ -104,11 +103,6 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 		return SendResponse{}, err
 	}
 
-	withEvents := true
-	if err = s.cosmosClient.SubscribeForTx(ctx, fromChain.ID, input.From); err != nil {
-		withEvents = false
-	}
-
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
 		err = fmt.Errorf("broadcasting tx sync with endpoint: %s; %s", endpoint, err.Error())
@@ -117,12 +111,109 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 	}
 
 	if response.Code != 0 {
-		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s", response.Code, response.Hash.String())
+		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s; log: %s", response.Code, response.Hash.String(), response.Log)
 		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
 	return SendResponse{
+		TxHash: response.Hash.String(),
+	}, nil
+}
+
+type SendInputFirebase struct {
+	ChainID       string `json:"chainId"`
+	From          string `json:"from"`
+	To            string `json:"to"`
+	Amount        string `json:"amount"`
+	Key           string `json:"key"`
+	Memo          string `json:"memo"`
+	GasAdjusted   string `json:"gasAdjusted"`
+	GasPrice      string `json:"gasPrice"`
+	FirebaseToken string `json:"firebaseToken"`
+}
+
+type SendResponseFirebase struct {
+	TxHash     string `json:"txHash"`
+	WithEvents bool   `json:"withEvents"`
+}
+
+func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInputFirebase) (SendResponseFirebase, error) {
+	fromChain, err := s.chainRepository.GetByID(ctx, input.ChainID)
+	if err != nil {
+		return SendResponseFirebase{}, err
+	}
+
+	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
+	if err != nil {
+		err = fmt.Errorf("chain: %s; %s", fromChain.Name, err.Error())
+		s.logger.Error(err)
+		return SendResponseFirebase{}, err
+	}
+
+	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
+	if err != nil {
+		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.Amount, denom, err.Error())
+		s.logger.Error(err)
+		return SendResponseFirebase{}, err
+	}
+
+	gasPrice, err := chain.FromDisplayToBase(input.GasPrice, denom, exponent)
+	if err != nil {
+		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.GasPrice, denom, err.Error())
+		s.logger.Error(err)
+		return SendResponseFirebase{}, err
+	}
+
+	coins, err := sdk.ParseCoinNormalized(amount)
+	if err != nil {
+		s.logger.Error(err)
+		return SendResponseFirebase{}, err
+	}
+
+	msgSend := &bank.MsgSend{
+		FromAddress: input.From,
+		ToAddress:   input.To,
+		Amount:      sdk.Coins{coins},
+	}
+
+	txBytes, err := s.cosmosClient.CreateSignedTransaction(ctx, client.SendTransactionData{
+		ChainID:     fromChain.ID,
+		Memo:        input.Memo,
+		GasAdjusted: input.GasAdjusted,
+		GasPrice:    gasPrice,
+		ChainPrefix: fromChain.Prefix,
+		Key:         input.Key,
+		Message:     msgSend,
+	})
+	if err != nil {
+		return SendResponseFirebase{}, err
+	}
+
+	rpcClient, endpoint, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
+	if err != nil {
+		return SendResponseFirebase{}, err
+	}
+
+	withEvents := true
+	if err = s.cosmosClient.SubscribeForTx(ctx, input.FirebaseToken, fromChain.ID, input.From); err != nil {
+		withEvents = false
+	}
+
+	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
+	if err != nil {
+		err = fmt.Errorf("broadcasting tx sync with endpoint: %s; %s", endpoint, err.Error())
+		s.logger.Error(err)
+		return SendResponseFirebase{}, err
+	}
+
+	if response.Code != 0 {
+		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s; log: %s", response.Code, response.Hash.String(), response.Log)
+		s.logger.Error(err)
+		return SendResponseFirebase{}, err
+	}
+
+	return SendResponseFirebase{
 		TxHash:     response.Hash.String(),
 		WithEvents: withEvents,
 	}, nil

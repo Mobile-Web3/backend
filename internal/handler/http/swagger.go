@@ -65,6 +65,17 @@ func GetAllChains() {}
 // @Router       /transaction/send [post]
 func SendTransaction() {}
 
+// SendTransactionFirebase godoc
+// @Summary      Отправить транзакцию с подпиской на события тендерминта с пушами в firebase
+// @Tags         transaction
+// @Accept       json
+// @Produce      json
+// @Content-Type application/json
+// @param        request body transaction.SendInputFirebase true "body"
+// @Success      200 {object} apiResponse{result=transaction.SendResponseFirebase}
+// @Router       /transaction/send/firebase [post]
+func SendTransactionFirebase() {}
+
 // SimulateTransaction godoc
 // @Summary      Симуляция транзакции для расчета параметров
 // @Tags         transaction
