@@ -313,7 +313,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/transaction.SendResponseFirebase"
+                                            "$ref": "#/definitions/transaction.SendResponse"
                                         }
                                     }
                                 }
@@ -576,17 +576,6 @@ const docTemplate = `{
             "properties": {
                 "txHash": {
                     "type": "string"
-                }
-            }
-        },
-        "transaction.SendResponseFirebase": {
-            "type": "object",
-            "properties": {
-                "txHash": {
-                    "type": "string"
-                },
-                "withEvents": {
-                    "type": "boolean"
                 }
             }
         },

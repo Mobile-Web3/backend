@@ -6,7 +6,7 @@ import (
 
 	fcm "firebase.google.com/go"
 	"firebase.google.com/go/messaging"
-	cosmos "github.com/Mobile-Web3/backend/pkg/cosmos/client"
+	"github.com/Mobile-Web3/backend/pkg/cosmos/connection"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	"google.golang.org/api/option"
 )
@@ -35,7 +35,21 @@ func NewCloudMessagingClient(keyPath string, logger log.Logger) (*CloudMessaging
 	}, nil
 }
 
-func (c *CloudMessagingClient) SendTxResult(ctx context.Context, token string, event cosmos.TxEvent) error {
+func (c *CloudMessagingClient) SendTxResult(ctx context.Context, event connection.TxEvent, params map[string]interface{}) error {
+	tokenParam, ok := params["token"]
+	if !ok {
+		err := fmt.Errorf("not found firebase token in params")
+		c.logger.Error(err)
+		return err
+	}
+
+	token, ok := tokenParam.(string)
+	if !ok {
+		err := fmt.Errorf("invalid firebase token: %v", tokenParam)
+		c.logger.Error(err)
+		return err
+	}
+
 	message := &messaging.Message{
 		Token: token,
 		Data: map[string]string{

@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
 
 	_ "github.com/Mobile-Web3/backend/docs/api"
 	"github.com/Mobile-Web3/backend/internal/db/memory"
@@ -18,7 +17,7 @@ import (
 	"github.com/Mobile-Web3/backend/internal/github"
 	httphandler "github.com/Mobile-Web3/backend/internal/handler/http"
 	"github.com/Mobile-Web3/backend/internal/server/http"
-	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
+	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/env"
 	"github.com/Mobile-Web3/backend/pkg/log"
 )
@@ -38,16 +37,6 @@ func Run() {
 	logger := log.NewFmt("02.01.2006 15:04:05")
 
 	err := env.Parse()
-	if err != nil {
-		logger.Error(err)
-		return
-	}
-
-	chainRPCLifetimeENV := os.Getenv("CHAIN_RPC_LIFETIME")
-	if chainRPCLifetimeENV == "" {
-		chainRPCLifetimeENV = "10m"
-	}
-	rpcLifetime, err := time.ParseDuration(chainRPCLifetimeENV)
 	if err != nil {
 		logger.Error(err)
 		return
@@ -73,7 +62,7 @@ func Run() {
 		return
 	}
 
-	cosmosClient, err := client.NewClient("direct", rpcLifetime, logger, firebaseCloudMessaging.SendTxResult, chainRepository.GetRPCEndpoints)
+	cosmosClient, err := cosmos.NewClient("direct", logger, firebaseCloudMessaging.SendTxResult, chainRepository.GetRPCEndpoints)
 	if err != nil {
 		logger.Error(err)
 		return

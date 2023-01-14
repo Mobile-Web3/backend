@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
-	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
+	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -19,10 +19,10 @@ type Service struct {
 	gasAdjustment   float64
 	logger          log.Logger
 	chainRepository chain.Repository
-	cosmosClient    *client.Client
+	cosmosClient    *cosmos.Client
 }
 
-func NewService(gasAdjustment float64, logger log.Logger, chainRepository chain.Repository, cosmosClient *client.Client) *Service {
+func NewService(gasAdjustment float64, logger log.Logger, chainRepository chain.Repository, cosmosClient *cosmos.Client) *Service {
 	return &Service{
 		gasAdjustment:   gasAdjustment,
 		logger:          logger,
@@ -85,7 +85,7 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 		Amount:      sdk.Coins{coins},
 	}
 
-	txBytes, err := s.cosmosClient.CreateSignedTransaction(ctx, client.SendTransactionData{
+	txBytes, err := s.cosmosClient.CreateSignedTransaction(ctx, cosmos.SendTransactionData{
 		ChainID:     fromChain.ID,
 		Memo:        input.Memo,
 		GasAdjusted: input.GasAdjusted,
@@ -98,20 +98,14 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 		return SendResponse{}, err
 	}
 
-	rpcClient, endpoint, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
-	if err != nil {
-		return SendResponse{}, err
-	}
-
+	rpcClient := s.cosmosClient.GetChainHttpClient(fromChain.ID)
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
-		err = fmt.Errorf("broadcasting tx sync with endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)
 		return SendResponse{}, err
 	}
 
 	if response.Code != 0 {
-		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s; log: %s", response.Code, response.Hash.String(), response.Log)
 		s.logger.Error(err)
 		return SendResponse{}, err
 	}
@@ -133,42 +127,37 @@ type SendInputFirebase struct {
 	FirebaseToken string `json:"firebaseToken"`
 }
 
-type SendResponseFirebase struct {
-	TxHash     string `json:"txHash"`
-	WithEvents bool   `json:"withEvents"`
-}
-
-func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInputFirebase) (SendResponseFirebase, error) {
+func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInputFirebase) (SendResponse, error) {
 	fromChain, err := s.chainRepository.GetByID(ctx, input.ChainID)
 	if err != nil {
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
 	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
 	if err != nil {
 		err = fmt.Errorf("chain: %s; %s", fromChain.Name, err.Error())
 		s.logger.Error(err)
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
 	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
 	if err != nil {
 		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.Amount, denom, err.Error())
 		s.logger.Error(err)
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
 	gasPrice, err := chain.FromDisplayToBase(input.GasPrice, denom, exponent)
 	if err != nil {
 		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.GasPrice, denom, err.Error())
 		s.logger.Error(err)
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
 	coins, err := sdk.ParseCoinNormalized(amount)
 	if err != nil {
 		s.logger.Error(err)
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
 	msgSend := &bank.MsgSend{
@@ -177,7 +166,7 @@ func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInput
 		Amount:      sdk.Coins{coins},
 	}
 
-	txBytes, err := s.cosmosClient.CreateSignedTransaction(ctx, client.SendTransactionData{
+	txBytes, err := s.cosmosClient.CreateSignedTransaction(ctx, cosmos.SendTransactionData{
 		ChainID:     fromChain.ID,
 		Memo:        input.Memo,
 		GasAdjusted: input.GasAdjusted,
@@ -187,35 +176,31 @@ func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInput
 		Message:     msgSend,
 	})
 	if err != nil {
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
-	rpcClient, endpoint, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
-	if err != nil {
-		return SendResponseFirebase{}, err
+	websocketClient := s.cosmosClient.GetChainWebsocketClient(fromChain.ID)
+	if err = websocketClient.SubscribeToTx(ctx, input.From, map[string]interface{}{
+		"token": input.FirebaseToken,
+	}); err != nil {
+		return SendResponse{}, err
 	}
 
-	withEvents := true
-	if err = s.cosmosClient.SubscribeForTx(ctx, input.FirebaseToken, fromChain.ID, input.From); err != nil {
-		withEvents = false
-	}
-
+	rpcClient := s.cosmosClient.GetChainHttpClient(fromChain.ID)
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
-		err = fmt.Errorf("broadcasting tx sync with endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
 	if response.Code != 0 {
 		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s; log: %s", response.Code, response.Hash.String(), response.Log)
 		s.logger.Error(err)
-		return SendResponseFirebase{}, err
+		return SendResponse{}, err
 	}
 
-	return SendResponseFirebase{
-		TxHash:     response.Hash.String(),
-		WithEvents: withEvents,
+	return SendResponse{
+		TxHash: response.Hash.String(),
 	}, nil
 }
 
@@ -267,7 +252,7 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 		Amount:      sdk.Coins{coins},
 	}
 
-	txBytes, err := s.cosmosClient.CreateSimulateTransaction(ctx, client.SimulateTransactionData{
+	txBytes, err := s.cosmosClient.CreateSimulateTransaction(ctx, cosmos.SimulateTransactionData{
 		ChainID:     fromChain.ID,
 		Memo:        input.Memo,
 		ChainPrefix: fromChain.Prefix,
@@ -288,14 +273,9 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 		Prove:  simQuery.Prove,
 	}
 
-	rpcClient, endpoint, err := s.cosmosClient.GetChainRPC(ctx, fromChain.ID)
-	if err != nil {
-		return SimulateResponse{}, err
-	}
-
+	rpcClient := s.cosmosClient.GetChainHttpClient(fromChain.ID)
 	response, err := rpcClient.ABCIQueryWithOptions(ctx, simQuery.Path, simQuery.Data, opts)
 	if err != nil {
-		err = fmt.Errorf("abci quering with rpc endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}
@@ -310,7 +290,6 @@ func (s *Service) SimulateTransaction(ctx context.Context, input SimulateInput) 
 
 	var result txtypes.SimulateResponse
 	if err = result.Unmarshal(response.Response.Value); err != nil {
-		err = fmt.Errorf("unmarshaling rpc response from endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)
 		return SimulateResponse{}, err
 	}

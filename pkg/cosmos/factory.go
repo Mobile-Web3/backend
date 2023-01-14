@@ -1,4 +1,4 @@
-package client
+package cosmos
 
 import (
 	"context"
@@ -21,29 +21,25 @@ func (c *Client) newTxFactory(chainID string) tx.Factory {
 
 func (c *Client) getAccount(ctx context.Context, address string, chainID string) (authtypes.AccountI, error) {
 	var header metadata.MD
-
-	grpcConn, endpoint, err := c.GetGrpcConnection(ctx, chainID)
-	if err != nil {
-		return nil, err
-	}
-
+	grpcConn := c.GetChainGrpcClient(chainID)
 	queryClient := authtypes.NewQueryClient(grpcConn)
+
 	res, err := queryClient.Account(ctx, &authtypes.QueryAccountRequest{Address: address}, grpc.Header(&header))
 	if err != nil {
-		err = fmt.Errorf("get account info with endpoint: %s; %s", endpoint, err.Error())
 		c.logger.Error(err)
 		return nil, err
 	}
+
 	blockHeight := header.Get(grpctypes.GRPCBlockHeightHeader)
 	if l := len(blockHeight); l != 1 {
-		err = fmt.Errorf("error with parsing grpc header; grpc endpoint: %s; unexpected '%s' header length; got %d, expected: %d", endpoint, grpctypes.GRPCBlockHeightHeader, l, 1)
+		err = fmt.Errorf("error with parsing grpc header; unexpected '%s' header length; got %d, expected: %d", grpctypes.GRPCBlockHeightHeader, l, 1)
 		c.logger.Error(err)
 		return nil, err
 	}
 
 	var acc authtypes.AccountI
 	if err = c.interfaceRegistry.UnpackAny(res.Account, &acc); err != nil {
-		err = fmt.Errorf("unpacking grpc response with interface registry; grpc endpoint: %s; %s", endpoint, err.Error())
+		err = fmt.Errorf("unpacking grpc response with interface registry; %s", err.Error())
 		c.logger.Error(err)
 		return nil, err
 	}

@@ -72,7 +72,7 @@ func SendTransaction() {}
 // @Produce      json
 // @Content-Type application/json
 // @param        request body transaction.SendInputFirebase true "body"
-// @Success      200 {object} apiResponse{result=transaction.SendResponseFirebase}
+// @Success      200 {object} apiResponse{result=transaction.SendResponse}
 // @Router       /transaction/send/firebase [post]
 func SendTransactionFirebase() {}
 

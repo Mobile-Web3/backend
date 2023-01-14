@@ -3,12 +3,11 @@ package account
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"math/big"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
-	"github.com/Mobile-Web3/backend/pkg/cosmos/client"
+	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -18,10 +17,10 @@ import (
 type Service struct {
 	logger          log.Logger
 	chainRepository chain.Repository
-	cosmosClient    *client.Client
+	cosmosClient    *cosmos.Client
 }
 
-func NewService(logger log.Logger, chainRepository chain.Repository, cosmosClient *client.Client) *Service {
+func NewService(logger log.Logger, chainRepository chain.Repository, cosmosClient *cosmos.Client) *Service {
 	return &Service{
 		logger:          logger,
 		chainRepository: chainRepository,
@@ -121,17 +120,12 @@ func (s *Service) CheckBalance(ctx context.Context, input BalanceInput) (Balance
 		return BalanceResponse{}, err
 	}
 
-	connection, endpoint, err := s.cosmosClient.GetGrpcConnection(ctx, chainInfo.ID)
-	if err != nil {
-		return BalanceResponse{}, err
-	}
-
+	connection := s.cosmosClient.GetChainGrpcClient(chainInfo.ID)
 	bankClient := bank.NewQueryClient(connection)
 	bankResponse, err := bankClient.AllBalances(ctx, &bank.QueryAllBalancesRequest{
 		Address: input.Address,
 	})
 	if err != nil {
-		err = fmt.Errorf("balance request with rpc endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)
 		return BalanceResponse{}, err
 	}
@@ -141,7 +135,6 @@ func (s *Service) CheckBalance(ctx context.Context, input BalanceInput) (Balance
 		DelegatorAddr: input.Address,
 	})
 	if err != nil {
-		err = fmt.Errorf("delegations request with rpc endpoint: %s; %s", endpoint, err.Error())
 		s.logger.Error(err)
 		return BalanceResponse{}, err
 	}

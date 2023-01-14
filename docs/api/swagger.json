@@ -305,7 +305,7 @@
                                     "type": "object",
                                     "properties": {
                                         "result": {
-                                            "$ref": "#/definitions/transaction.SendResponseFirebase"
+                                            "$ref": "#/definitions/transaction.SendResponse"
                                         }
                                     }
                                 }
@@ -568,17 +568,6 @@
             "properties": {
                 "txHash": {
                     "type": "string"
-                }
-            }
-        },
-        "transaction.SendResponseFirebase": {
-            "type": "object",
-            "properties": {
-                "txHash": {
-                    "type": "string"
-                },
-                "withEvents": {
-                    "type": "boolean"
                 }
             }
         },
