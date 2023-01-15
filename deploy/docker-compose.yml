@@ -31,8 +31,6 @@ services:
 
   api:
     image: api
-    ports:
-      - "8090:8090"
     volumes:
       - ../../environment/api/.env:/app/.env
       - ../../environment/api/firebase-key.json:/app/firebase-key.json

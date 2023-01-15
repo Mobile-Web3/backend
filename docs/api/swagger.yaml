@@ -136,6 +136,13 @@ definitions:
       txHash:
         type: string
     type: object
+  transaction.SendResponseFirebase:
+    properties:
+      txHash:
+        type: string
+      withEvents:
+        type: boolean
+    type: object
   transaction.SimulateInput:
     properties:
       amount:
@@ -340,7 +347,7 @@ paths:
             - $ref: '#/definitions/http.apiResponse'
             - properties:
                 result:
-                  $ref: '#/definitions/transaction.SendResponse'
+                  $ref: '#/definitions/transaction.SendResponseFirebase'
               type: object
       summary: Отправить транзакцию с подпиской на события тендерминта с пушами в
         firebase

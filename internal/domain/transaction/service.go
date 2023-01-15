@@ -127,37 +127,42 @@ type SendInputFirebase struct {
 	FirebaseToken string `json:"firebaseToken"`
 }
 
-func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInputFirebase) (SendResponse, error) {
+type SendResponseFirebase struct {
+	TxHash     string `json:"txHash"`
+	WithEvents bool   `json:"withEvents"`
+}
+
+func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInputFirebase) (SendResponseFirebase, error) {
 	fromChain, err := s.chainRepository.GetByID(ctx, input.ChainID)
 	if err != nil {
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
 	denom, exponent, err := chain.GetBaseDenom(fromChain.Asset.Base, fromChain.Asset.Display, fromChain.Asset.DenomUnits)
 	if err != nil {
 		err = fmt.Errorf("chain: %s; %s", fromChain.Name, err.Error())
 		s.logger.Error(err)
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
 	amount, err := chain.FromDisplayToBase(input.Amount, denom, exponent)
 	if err != nil {
 		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.Amount, denom, err.Error())
 		s.logger.Error(err)
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
 	gasPrice, err := chain.FromDisplayToBase(input.GasPrice, denom, exponent)
 	if err != nil {
 		err = fmt.Errorf("denom converting; chain: %s; amount: %s; denom: %s; %s", fromChain.Name, input.GasPrice, denom, err.Error())
 		s.logger.Error(err)
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
 	coins, err := sdk.ParseCoinNormalized(amount)
 	if err != nil {
 		s.logger.Error(err)
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
 	msgSend := &bank.MsgSend{
@@ -176,31 +181,36 @@ func (s *Service) SendTransactionWithEvents(ctx context.Context, input SendInput
 		Message:     msgSend,
 	})
 	if err != nil {
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
+	withEvents := true
 	websocketClient := s.cosmosClient.GetChainWebsocketClient(fromChain.ID)
-	if err = websocketClient.SubscribeToTx(ctx, input.From, map[string]interface{}{
+	subscriber, err := websocketClient.SubscribeToTx(ctx, input.From, map[string]interface{}{
 		"token": input.FirebaseToken,
-	}); err != nil {
-		return SendResponse{}, err
+	})
+	if err != nil {
+		withEvents = false
 	}
 
 	rpcClient := s.cosmosClient.GetChainHttpClient(fromChain.ID)
 	response, err := rpcClient.BroadcastTxSync(ctx, txBytes)
 	if err != nil {
+		websocketClient.UnsubscribeFromTx(subscriber)
 		s.logger.Error(err)
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
 	if response.Code != 0 {
+		websocketClient.UnsubscribeFromTx(subscriber)
 		err = fmt.Errorf("transaction failed with code: %d; TxHash: %s; log: %s", response.Code, response.Hash.String(), response.Log)
 		s.logger.Error(err)
-		return SendResponse{}, err
+		return SendResponseFirebase{}, err
 	}
 
-	return SendResponse{
-		TxHash: response.Hash.String(),
+	return SendResponseFirebase{
+		TxHash:     response.Hash.String(),
+		WithEvents: withEvents,
 	}, nil
 }
 
