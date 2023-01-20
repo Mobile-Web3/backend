@@ -53,6 +53,7 @@ func (c *CloudMessagingClient) SendTxResult(ctx context.Context, event connectio
 	message := &messaging.Message{
 		Token: token,
 		Data: map[string]string{
+			"txHash":    event.TxHash,
 			"isSuccess": fmt.Sprintf("%t", event.Code == 0),
 			"info":      event.Info,
 			"gasUsed":   fmt.Sprintf("%d", event.GasUsed),

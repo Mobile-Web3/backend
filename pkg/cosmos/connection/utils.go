@@ -17,6 +17,7 @@ var (
 )
 
 type TxEvent struct {
+	TxHash    string
 	Code      uint32
 	Log       string
 	Info      string

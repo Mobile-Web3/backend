@@ -55,7 +55,13 @@ func (c *tendermintWebsocketClient) listenTxEvents(
 			}
 
 			txData := event.Data.(types.EventDataTx)
+			txHash := ""
+			if len(event.Events["tx.hash"]) > 0 {
+				txHash = event.Events["tx.hash"][0]
+			}
+
 			txEvent := TxEvent{
+				TxHash:    txHash,
 				Code:      txData.Result.Code,
 				Log:       txData.Result.Log,
 				Info:      txData.Result.Info,
