@@ -70,6 +70,7 @@ func (c *tendermintWebsocketClient) listenTxEvents(
 			}
 
 			_ = c.handleTxEvent(ctx, txEvent, params)
+			return
 		}
 	}
 }
