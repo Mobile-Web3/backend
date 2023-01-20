@@ -130,8 +130,8 @@ func (s *Service) CheckBalance(ctx context.Context, input BalanceInput) (Balance
 		return BalanceResponse{}, err
 	}
 
-	stackingClient := staking.NewQueryClient(connection)
-	stakingResponse, err := stackingClient.DelegatorDelegations(ctx, &staking.QueryDelegatorDelegationsRequest{
+	stakingClient := staking.NewQueryClient(connection)
+	stakingResponse, err := stakingClient.DelegatorDelegations(ctx, &staking.QueryDelegatorDelegationsRequest{
 		DelegatorAddr: input.Address,
 	})
 	if err != nil {

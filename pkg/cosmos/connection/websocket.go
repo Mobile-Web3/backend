@@ -35,12 +35,12 @@ func NewTendermintWebsocketClient(chainID string, logger log.Logger, getRpcHandl
 }
 
 func (c *tendermintWebsocketClient) listenTxEvents(
-	ctx context.Context,
 	subscriber string,
 	query string,
 	params map[string]interface{},
 	channel <-chan ctypes.ResultEvent,
 	client *http.HTTP) {
+	ctx := context.Background()
 	defer client.Unsubscribe(ctx, subscriber, query)
 	defer client.Stop()
 	for {
@@ -83,7 +83,7 @@ func (c *tendermintWebsocketClient) subscribeToTx(
 		return "", err
 	}
 
-	go c.listenTxEvents(ctx, subscriber, query, params, eventsChannel, client)
+	go c.listenTxEvents(subscriber, query, params, eventsChannel, client)
 	return subscriber, nil
 }
 
