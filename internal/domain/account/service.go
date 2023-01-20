@@ -3,9 +3,8 @@ package account
 import (
 	"context"
 	"encoding/hex"
-	"math"
-	"math/big"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/pkg/cosmos"
 	"github.com/Mobile-Web3/backend/pkg/log"
@@ -142,22 +141,23 @@ func (s *Service) CheckBalance(ctx context.Context, input BalanceInput) (Balance
 	response := BalanceResponse{}
 	for _, denomUnit := range chainInfo.Asset.DenomUnits {
 		if denomUnit.Denom == chainInfo.Asset.Display {
-			multiplier := big.NewFloat(0).SetFloat64(math.Pow(10, float64(denomUnit.Exponent)))
+			total := sdkmath.NewInt(0)
 
-			availableAmount := big.NewFloat(0)
+			availableAmount := "0"
 			if len(bankResponse.Balances) > 0 {
-				availableAmount = availableAmount.SetInt(bankResponse.Balances[0].Amount.BigInt())
+				availableAmount = chain.FromBaseToDisplay(bankResponse.Balances[0].Amount.String(), denomUnit.Exponent)
+				total = total.Add(bankResponse.Balances[0].Amount)
 			}
 
-			stakedAmount := big.NewFloat(0)
+			stakedAmount := "0"
 			if len(stakingResponse.DelegationResponses) > 0 {
-				stakedAmount = stakedAmount.SetInt(stakingResponse.DelegationResponses[0].Balance.Amount.BigInt())
+				stakedAmount = chain.FromBaseToDisplay(stakingResponse.DelegationResponses[0].Balance.Amount.String(), denomUnit.Exponent)
+				total = total.Add(stakingResponse.DelegationResponses[0].Balance.Amount)
 			}
 
-			totalAmount := big.NewFloat(0).Add(availableAmount, stakedAmount)
-			response.AvailableAmount = availableAmount.Quo(availableAmount, multiplier).String()
-			response.StakedAmount = stakedAmount.Quo(stakedAmount, multiplier).String()
-			response.TotalAmount = totalAmount.Quo(totalAmount, multiplier).String()
+			response.AvailableAmount = availableAmount
+			response.StakedAmount = stakedAmount
+			response.TotalAmount = chain.FromBaseToDisplay(total.String(), denomUnit.Exponent)
 			break
 		}
 	}

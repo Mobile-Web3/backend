@@ -91,6 +91,38 @@ func GetBaseDenom(base string, display string, denoms []DenomUnit) (denom string
 	return
 }
 
+func FromBaseToDisplay(amount string, exponent int) string {
+	if amount == "0" {
+		return amount
+	}
+	result := ""
+	index := len(amount) - 1
+	count := 0
+	for {
+		if index == -1 {
+			if count == exponent {
+				result = "0." + result
+				return result
+			}
+			if count > exponent {
+				return result
+			}
+
+			count++
+			result = "0" + result
+			continue
+		}
+
+		if count == exponent {
+			result = "." + result
+		}
+
+		result = string(amount[index]) + result
+		index--
+		count++
+	}
+}
+
 func FromDisplayToBase(amount string, denom string, exponent int) (string, error) {
 	if amount == "0" {
 		return "", ErrInvalidAmount
