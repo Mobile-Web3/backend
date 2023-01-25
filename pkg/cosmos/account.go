@@ -13,19 +13,7 @@ import (
 	ethhd "github.com/evmos/ethermint/crypto/hd"
 )
 
-func (c *Client) CreateMnemonic(mnemonicSize uint8) (string, error) {
-	var entropySize int
-	switch mnemonicSize {
-	case 12:
-		entropySize = 128
-	case 24:
-		entropySize = 256
-	default:
-		err := fmt.Errorf("invalid mnemonic size, available values: 12, 24; provided size %d", mnemonicSize)
-		c.logger.Error(err)
-		return "", err
-	}
-
+func (c *Client) CreateMnemonic(entropySize int) (string, error) {
 	entropy, err := bip39.NewEntropy(entropySize)
 	if err != nil {
 		err = fmt.Errorf("creating entropy with size %d; %s", entropySize, err.Error())

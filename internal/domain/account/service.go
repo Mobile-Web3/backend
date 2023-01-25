@@ -3,6 +3,8 @@ package account
 import (
 	"context"
 	"encoding/hex"
+	"errors"
+	"fmt"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
@@ -31,8 +33,38 @@ type CreateMnemonicInput struct {
 	MnemonicSize uint8 `json:"mnemonicSize"`
 }
 
+func (input CreateMnemonicInput) Validate() error {
+	if input.MnemonicSize < 12 || input.MnemonicSize > 24 {
+		return fmt.Errorf("invalid mnemonic size, available values: 12, 24; provided size %d", input.MnemonicSize)
+	}
+
+	return nil
+}
+
 func (s *Service) CreateMnemonic(ctx context.Context, input CreateMnemonicInput) (string, error) {
-	return s.cosmosClient.CreateMnemonic(input.MnemonicSize)
+	var entropySize int
+	switch input.MnemonicSize {
+	case 12:
+		entropySize = 128
+	case 24:
+		entropySize = 256
+	}
+	return s.cosmosClient.CreateMnemonic(entropySize)
+}
+
+func (s *Service) getAddresses(key types.PrivKey, prefixes []string) ([]string, error) {
+	addresses := make([]string, len(prefixes))
+	address := key.PubKey().Address()
+	for index, prefix := range prefixes {
+		addr, err := s.cosmosClient.ConvertAddressPrefix(prefix, address)
+		if err != nil {
+			return nil, err
+		}
+
+		addresses[index] = addr
+	}
+
+	return addresses, nil
 }
 
 type KeyResponse struct {
@@ -40,19 +72,12 @@ type KeyResponse struct {
 	Addresses []string `json:"addresses"`
 }
 
-func (s *Service) getAddresses(key types.PrivKey, prefixes []string) ([]string, error) {
-	var addresses []string
-	address := key.PubKey().Address()
-	for _, prefix := range prefixes {
-		addr, err := s.cosmosClient.ConvertAddressPrefix(prefix, address)
-		if err != nil {
-			return nil, err
-		}
-
-		addresses = append(addresses, addr)
+func formatErrors(errs []string) error {
+	result := errs[0]
+	for i := 1; i < len(errs); i++ {
+		result = fmt.Sprintf("%s; %s", result, errs[i])
 	}
-
-	return addresses, nil
+	return errors.New(result)
 }
 
 type CreateAccountInput struct {
@@ -61,6 +86,27 @@ type CreateAccountInput struct {
 	AccountPath   uint32   `json:"accountPath"`
 	IndexPath     uint32   `json:"indexPath"`
 	ChainPrefixes []string `json:"chainPrefixes"`
+}
+
+func (input CreateAccountInput) Validate() error {
+	var errs []string
+	if input.Mnemonic == "" {
+		errs = append(errs, "invalid mnemonic")
+	}
+
+	if input.CoinType != 118 && input.CoinType != 60 {
+		errs = append(errs, fmt.Sprintf("coin type %d is not supported, supported coins - 60, 118", input.CoinType))
+	}
+
+	if len(input.ChainPrefixes) == 0 {
+		errs = append(errs, "at least one chain is needed")
+	}
+
+	if len(errs) > 0 {
+		return formatErrors(errs)
+	}
+
+	return nil
 }
 
 func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (KeyResponse, error) {
@@ -85,6 +131,23 @@ type RestoreAccountInput struct {
 	ChainPrefixes []string `json:"chainPrefixes"`
 }
 
+func (input RestoreAccountInput) Validate() error {
+	var errs []string
+	if input.Key == "" {
+		errs = append(errs, "invalid key")
+	}
+
+	if len(input.ChainPrefixes) == 0 {
+		errs = append(errs, "at least one chain is needed")
+	}
+
+	if len(errs) > 0 {
+		return formatErrors(errs)
+	}
+
+	return nil
+}
+
 func (s *Service) RestoreAccount(ctx context.Context, input RestoreAccountInput) (KeyResponse, error) {
 	privateKey, err := s.cosmosClient.CreateAccountFromHexKey(input.Key)
 	if err != nil {
@@ -105,6 +168,23 @@ func (s *Service) RestoreAccount(ctx context.Context, input RestoreAccountInput)
 type BalanceInput struct {
 	ChainID string `json:"chainId"`
 	Address string `json:"address"`
+}
+
+func (input BalanceInput) Validate() error {
+	var errs []string
+	if input.ChainID == "" {
+		errs = append(errs, "invalid chainId")
+	}
+
+	if input.Address == "" {
+		errs = append(errs, "invalid address")
+	}
+
+	if len(errs) > 0 {
+		return formatErrors(errs)
+	}
+
+	return nil
 }
 
 type BalanceResponse struct {

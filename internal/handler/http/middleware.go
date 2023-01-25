@@ -3,7 +3,6 @@ package http
 import (
 	"errors"
 	"net"
-	"net/http"
 	"os"
 	"strings"
 
@@ -40,7 +39,7 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 					}
 				}
 
-				context.JSON(http.StatusOK, newErrorResponse(value.Error()))
+				errorResponse(context, value)
 			}
 		}()
 

@@ -15,40 +15,50 @@ import (
 	swagger "github.com/swaggo/http-swagger"
 )
 
-type handler[TResponse any] func(ctx context.Context) (TResponse, error)
-type requestHandler[TRequest any, TResponse any] func(ctx context.Context, request TRequest) (TResponse, error)
+type validatedRequest interface {
+	Validate() error
+}
 
-func newHandler[TResponse any](handler handler[TResponse]) gin.HandlerFunc {
+type emptyHandle[TResponse any] func(ctx context.Context) (TResponse, error)
+type requestHandler[TRequest validatedRequest, TResponse any] func(ctx context.Context, request TRequest) (TResponse, error)
+
+func newHandler[TResponse any](handle emptyHandle[TResponse]) gin.HandlerFunc {
 	return func(context *gin.Context) {
-		response, err := handler(context.Request.Context())
+		response, err := handle(context.Request.Context())
 		if err != nil {
 			metrics.ErrorsCounter.Incr(1)
-			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
+			errorResponse(context, err)
 			return
 		}
 
-		context.JSON(http.StatusOK, newSuccessResponse(response))
+		successResponse(context, response)
 	}
 }
 
-func newRequestHandler[TRequest any, TResponse any](handler requestHandler[TRequest, TResponse], logger log.Logger) gin.HandlerFunc {
+func newRequestHandler[TRequest validatedRequest, TResponse any](handleRequest requestHandler[TRequest, TResponse], logger log.Logger) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		var request TRequest
 		if err := context.BindJSON(&request); err != nil {
 			logger.Error(err)
 			metrics.ErrorsCounter.Incr(1)
-			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
+			errorResponse(context, err)
 			return
 		}
 
-		response, err := handler(context.Request.Context(), request)
+		if err := request.Validate(); err != nil {
+			metrics.ErrorsCounter.Incr(1)
+			errorResponse(context, err)
+			return
+		}
+
+		response, err := handleRequest(context.Request.Context(), request)
 		if err != nil {
 			metrics.ErrorsCounter.Incr(1)
-			context.JSON(http.StatusOK, newErrorResponse(err.Error()))
+			errorResponse(context, err)
 			return
 		}
 
-		context.JSON(http.StatusOK, newSuccessResponse(response))
+		successResponse(context, response)
 	}
 }
 

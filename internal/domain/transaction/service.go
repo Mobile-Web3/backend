@@ -2,8 +2,10 @@ package transaction
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/pkg/cosmos"
@@ -40,6 +42,51 @@ type SendInput struct {
 	Memo        string `json:"memo"`
 	GasAdjusted string `json:"gasAdjusted"`
 	GasPrice    string `json:"gasPrice"`
+}
+
+func formatErrors(errs []string) error {
+	result := errs[0]
+	for i := 1; i < len(errs); i++ {
+		result = fmt.Sprintf("%s; %s", result, errs[i])
+	}
+	return errors.New(result)
+}
+
+func (input SendInput) Validate() error {
+	var errs []string
+	if input.ChainID == "" {
+		errs = append(errs, "invalid chainId")
+	}
+
+	if input.From == "" {
+		errs = append(errs, "invalid from address")
+	}
+
+	if input.To == "" {
+		errs = append(errs, "invalid to address")
+	}
+
+	if _, err := strconv.ParseFloat(input.Amount, 64); err != nil {
+		errs = append(errs, "invalid amount")
+	}
+
+	if input.Key == "" {
+		errs = append(errs, "invalid key")
+	}
+
+	if _, err := strconv.ParseFloat(input.GasAdjusted, 64); err != nil {
+		errs = append(errs, "invalid gasAdjusted")
+	}
+
+	if _, err := strconv.ParseFloat(input.GasPrice, 64); err != nil {
+		errs = append(errs, "invalid gasPrice")
+	}
+
+	if len(errs) > 0 {
+		return formatErrors(errs)
+	}
+
+	return nil
 }
 
 type SendResponse struct {
@@ -125,6 +172,47 @@ type SendInputFirebase struct {
 	GasAdjusted   string `json:"gasAdjusted"`
 	GasPrice      string `json:"gasPrice"`
 	FirebaseToken string `json:"firebaseToken"`
+}
+
+func (input SendInputFirebase) Validate() error {
+	var errs []string
+	if input.ChainID == "" {
+		errs = append(errs, "invalid chainId")
+	}
+
+	if input.From == "" {
+		errs = append(errs, "invalid from address")
+	}
+
+	if input.To == "" {
+		errs = append(errs, "invalid to address")
+	}
+
+	if _, err := strconv.ParseFloat(input.Amount, 64); err != nil {
+		errs = append(errs, "invalid amount")
+	}
+
+	if input.Key == "" {
+		errs = append(errs, "invalid key")
+	}
+
+	if _, err := strconv.ParseFloat(input.GasAdjusted, 64); err != nil {
+		errs = append(errs, "invalid gasAdjusted")
+	}
+
+	if _, err := strconv.ParseFloat(input.GasPrice, 64); err != nil {
+		errs = append(errs, "invalid gasPrice")
+	}
+
+	if input.FirebaseToken == "" {
+		errs = append(errs, "invalid firebaseToken")
+	}
+
+	if len(errs) > 0 {
+		return formatErrors(errs)
+	}
+
+	return nil
 }
 
 type SendResponseFirebase struct {
@@ -221,6 +309,35 @@ type SimulateInput struct {
 	Amount  string `json:"amount"`
 	Key     string `json:"key"`
 	Memo    string `json:"memo"`
+}
+
+func (input SimulateInput) Validate() error {
+	var errs []string
+	if input.ChainID == "" {
+		errs = append(errs, "invalid chainId")
+	}
+
+	if input.From == "" {
+		errs = append(errs, "invalid from address")
+	}
+
+	if input.To == "" {
+		errs = append(errs, "invalid to address")
+	}
+
+	if _, err := strconv.ParseFloat(input.Amount, 64); err != nil {
+		errs = append(errs, "invalid amount")
+	}
+
+	if input.Key == "" {
+		errs = append(errs, "invalid key")
+	}
+
+	if len(errs) > 0 {
+		return formatErrors(errs)
+	}
+
+	return nil
 }
 
 type SimulateResponse struct {

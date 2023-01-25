@@ -1,21 +1,27 @@
 package http
 
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
 type apiResponse struct {
 	IsSuccess bool        `json:"isSuccess"`
 	Error     string      `json:"error"`
 	Result    interface{} `json:"result"`
 }
 
-func newSuccessResponse(result interface{}) apiResponse {
-	return apiResponse{
+func successResponse(context *gin.Context, result interface{}) {
+	context.JSON(http.StatusOK, apiResponse{
 		IsSuccess: true,
 		Result:    result,
-	}
+	})
 }
 
-func newErrorResponse(error string) apiResponse {
-	return apiResponse{
+func errorResponse(context *gin.Context, err error) {
+	context.JSON(http.StatusOK, apiResponse{
 		IsSuccess: false,
-		Error:     error,
-	}
+		Error:     err.Error(),
+	})
 }
