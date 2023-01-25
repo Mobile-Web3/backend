@@ -1,12 +1,5 @@
 basePath: /api
 definitions:
-  account.BalanceInput:
-    properties:
-      address:
-        type: string
-      chainId:
-        type: string
-    type: object
   account.BalanceResponse:
     properties:
       availableAmount:
@@ -82,14 +75,6 @@ definitions:
         type: integer
       symbol:
         type: string
-    type: object
-  http.apiResponse:
-    properties:
-      error:
-        type: string
-      isSuccess:
-        type: boolean
-      result: {}
     type: object
   transaction.SendInput:
     properties:
@@ -169,23 +154,35 @@ definitions:
       lowGasPrice:
         type: string
     type: object
+  v1.apiResponse:
+    properties:
+      error:
+        type: string
+      isSuccess:
+        type: boolean
+      result: {}
+    type: object
 info:
   contact: {}
   description: API
   title: Swagger UI
   version: "1.0"
 paths:
-  /account/balance:
-    post:
+  /v1/accounts/balance:
+    get:
       consumes:
       - application/json
       parameters:
-      - description: body
-        in: body
-        name: request
+      - description: id сети
+        in: query
+        name: chainId
         required: true
-        schema:
-          $ref: '#/definitions/account.BalanceInput'
+        type: string
+      - description: адрес кошелька
+        in: query
+        name: address
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -193,15 +190,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/account.BalanceResponse'
               type: object
       summary: Получить инфу о балансе
       tags:
-      - account
-  /account/create:
+      - accounts
+  /v1/accounts/create:
     post:
       consumes:
       - application/json
@@ -219,15 +216,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/account.KeyResponse'
               type: object
       summary: Получение аккаунта по мнемонику
       tags:
-      - account
-  /account/mnemonic:
+      - accounts
+  /v1/accounts/mnemonic:
     post:
       consumes:
       - application/json
@@ -245,15 +242,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   type: string
               type: object
       summary: Создание мнемоника
       tags:
-      - account
-  /account/restore:
+      - accounts
+  /v1/accounts/restore:
     post:
       consumes:
       - application/json
@@ -271,16 +268,16 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/account.KeyResponse'
               type: object
       summary: Получение аккаунта по ключу
       tags:
-      - account
-  /chains/all:
-    post:
+      - accounts
+  /v1/chains:
+    get:
       consumes:
       - application/json
       produces:
@@ -290,7 +287,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   items:
@@ -299,8 +296,8 @@ paths:
               type: object
       summary: Получение данных о сетях
       tags:
-      - chain
-  /transaction/send:
+      - chains
+  /v1/transactions/send:
     post:
       consumes:
       - application/json
@@ -318,15 +315,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/transaction.SendResponse'
               type: object
       summary: Отправить транзакцию
       tags:
-      - transaction
-  /transaction/send/firebase:
+      - transactions
+  /v1/transactions/send/firebase:
     post:
       consumes:
       - application/json
@@ -344,7 +341,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/transaction.SendResponseFirebase'
@@ -352,8 +349,8 @@ paths:
       summary: Отправить транзакцию с подпиской на события тендерминта с пушами в
         firebase
       tags:
-      - transaction
-  /transaction/simulate:
+      - transactions
+  /v1/transactions/simulate:
     post:
       consumes:
       - application/json
@@ -371,12 +368,12 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/http.apiResponse'
+            - $ref: '#/definitions/v1.apiResponse'
             - properties:
                 result:
                   $ref: '#/definitions/transaction.SimulateResponse'
               type: object
       summary: Симуляция транзакции для расчета параметров
       tags:
-      - transaction
+      - transactions
 swagger: "2.0"

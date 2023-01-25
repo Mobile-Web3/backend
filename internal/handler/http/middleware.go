@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	v1 "github.com/Mobile-Web3/backend/internal/handler/http/v1"
 	"github.com/Mobile-Web3/backend/internal/metrics"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/gin-gonic/gin"
@@ -39,7 +40,7 @@ func recoverMiddleware(logger log.Logger) gin.HandlerFunc {
 					}
 				}
 
-				errorResponse(context, value)
+				v1.ErrorResponse(context, value)
 			}
 		}()
 

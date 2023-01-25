@@ -1,81 +1,17 @@
 package http
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 
 	_ "github.com/Mobile-Web3/backend/docs/api"
 	"github.com/Mobile-Web3/backend/internal/domain/account"
 	"github.com/Mobile-Web3/backend/internal/domain/chain"
 	"github.com/Mobile-Web3/backend/internal/domain/transaction"
-	"github.com/Mobile-Web3/backend/internal/metrics"
+	v1 "github.com/Mobile-Web3/backend/internal/handler/http/v1"
 	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/gin-gonic/gin"
 	swagger "github.com/swaggo/http-swagger"
 )
-
-type validatedRequest interface {
-	Validate() error
-}
-
-type emptyHandle[TResponse any] func(ctx context.Context) (TResponse, error)
-type requestHandler[TRequest validatedRequest, TResponse any] func(ctx context.Context, request TRequest) (TResponse, error)
-
-func newHandler[TResponse any](handle emptyHandle[TResponse]) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		response, err := handle(context.Request.Context())
-		if err != nil {
-			metrics.ErrorsCounter.Incr(1)
-			errorResponse(context, err)
-			return
-		}
-
-		successResponse(context, response)
-	}
-}
-
-func newRequestHandler[TRequest validatedRequest, TResponse any](handleRequest requestHandler[TRequest, TResponse], logger log.Logger) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		var request TRequest
-		if err := context.BindJSON(&request); err != nil {
-			logger.Error(err)
-			metrics.ErrorsCounter.Incr(1)
-			errorResponse(context, err)
-			return
-		}
-
-		if err := request.Validate(); err != nil {
-			metrics.ErrorsCounter.Incr(1)
-			errorResponse(context, err)
-			return
-		}
-
-		response, err := handleRequest(context.Request.Context(), request)
-		if err != nil {
-			metrics.ErrorsCounter.Incr(1)
-			errorResponse(context, err)
-			return
-		}
-
-		successResponse(context, response)
-	}
-}
-
-func metricsHandler(context *gin.Context) {
-	result := fmt.Sprintf(`<h3>Metrics</h3>
-<div>average requests   per second for the last hour: %d</div>
-<div>average errors     per second for the last hour: %d</div>
-<div>average exceptions per second for the last hour: %d</div>`,
-		metrics.RpsCounter.Rate()/60/60, metrics.ErrorsCounter.Rate()/60/60, metrics.PanicsCounter.Rate()/60/60)
-	context.Writer.WriteHeader(http.StatusOK)
-	context.Writer.Header().Set("Content-Type", "text/html")
-	_, err := context.Writer.Write([]byte(result))
-	if err != nil {
-		context.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-}
 
 type Dependencies struct {
 	Logger             log.Logger
@@ -84,42 +20,41 @@ type Dependencies struct {
 	TransactionService *transaction.Service
 }
 
-func NewHandler(dependencies *Dependencies) (http.Handler, error) {
-	accountService := dependencies.AccountService
-	transactionService := dependencies.TransactionService
-	chainRepository := dependencies.Repository
-	logger := dependencies.Logger
+func NewHandler(dependencies *Dependencies) http.Handler {
+	accountsController := v1.NewAccountsController(dependencies.Logger, dependencies.AccountService)
+	chainsController := v1.NewChainsController(dependencies.Logger, dependencies.Repository)
+	transactionsController := v1.NewTransactionsController(dependencies.Logger, dependencies.TransactionService)
 
 	gin.SetMode("release")
 	router := gin.New()
-	router.Use(recoverMiddleware(logger))
+	router.Use(recoverMiddleware(dependencies.Logger))
 
 	swaggerHandler := gin.WrapH(swagger.Handler(swagger.URL("doc.json")))
 	router.GET("/api/swagger/*any", swaggerHandler)
-	router.GET("/api/metrics", metricsHandler)
+	router.GET("/api/metrics", v1.MetricsHandler)
 
-	api := router.Group("/api", metricsMiddleware)
+	api := router.Group("/api/v1", metricsMiddleware)
 	{
-		accounts := api.Group("account")
+		accounts := api.Group("accounts")
 		{
-			accounts.POST("mnemonic", newRequestHandler(accountService.CreateMnemonic, logger))
-			accounts.POST("create", newRequestHandler(accountService.CreateAccount, logger))
-			accounts.POST("restore", newRequestHandler(accountService.RestoreAccount, logger))
-			accounts.POST("balance", newRequestHandler(accountService.CheckBalance, logger))
+			accounts.POST("mnemonic", accountsController.CreateMnemonic())
+			accounts.POST("create", accountsController.CreateAccount())
+			accounts.POST("restore", accountsController.RestoreAccount())
+			accounts.GET("balance", accountsController.GetBalance)
 		}
 
 		chains := api.Group("chains")
 		{
-			chains.POST("all", newHandler(chainRepository.GetAllChains))
+			chains.GET("", chainsController.GetChains())
 		}
 
-		transactions := api.Group("transaction")
+		transactions := api.Group("transactions")
 		{
-			transactions.POST("send", newRequestHandler(transactionService.SendTransaction, logger))
-			transactions.POST("send/firebase", newRequestHandler(transactionService.SendTransactionWithEvents, logger))
-			transactions.POST("simulate", newRequestHandler(transactionService.SimulateTransaction, logger))
+			transactions.POST("send", transactionsController.SendTransaction())
+			transactions.POST("send/firebase", transactionsController.SendTransactionFirebase())
+			transactions.POST("simulate", transactionsController.SimulateTransaction())
 		}
 	}
 
-	return router, nil
+	return router
 }

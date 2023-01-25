@@ -16,8 +16,8 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/account/balance": {
-            "post": {
+        "/v1/accounts/balance": {
+            "get": {
                 "consumes": [
                     "application/json"
                 ],
@@ -25,18 +25,23 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "accounts"
                 ],
                 "summary": "Получить инфу о балансе",
                 "parameters": [
                     {
-                        "description": "body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/account.BalanceInput"
-                        }
+                        "type": "string",
+                        "description": "id сети",
+                        "name": "chainId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "адрес кошелька",
+                        "name": "address",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -45,7 +50,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -61,7 +66,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/account/create": {
+        "/v1/accounts/create": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -70,7 +75,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "accounts"
                 ],
                 "summary": "Получение аккаунта по мнемонику",
                 "parameters": [
@@ -90,7 +95,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -106,7 +111,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/account/mnemonic": {
+        "/v1/accounts/mnemonic": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -115,7 +120,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "accounts"
                 ],
                 "summary": "Создание мнемоника",
                 "parameters": [
@@ -135,7 +140,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -151,7 +156,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/account/restore": {
+        "/v1/accounts/restore": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -160,7 +165,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "accounts"
                 ],
                 "summary": "Получение аккаунта по ключу",
                 "parameters": [
@@ -180,7 +185,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -196,8 +201,8 @@ const docTemplate = `{
                 }
             }
         },
-        "/chains/all": {
-            "post": {
+        "/v1/chains": {
+            "get": {
                 "consumes": [
                     "application/json"
                 ],
@@ -205,7 +210,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "chain"
+                    "chains"
                 ],
                 "summary": "Получение данных о сетях",
                 "responses": {
@@ -214,7 +219,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -233,7 +238,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/transaction/send": {
+        "/v1/transactions/send": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -242,7 +247,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "transaction"
+                    "transactions"
                 ],
                 "summary": "Отправить транзакцию",
                 "parameters": [
@@ -262,7 +267,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -278,7 +283,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/transaction/send/firebase": {
+        "/v1/transactions/send/firebase": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -287,7 +292,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "transaction"
+                    "transactions"
                 ],
                 "summary": "Отправить транзакцию с подпиской на события тендерминта с пушами в firebase",
                 "parameters": [
@@ -307,7 +312,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -323,7 +328,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/transaction/simulate": {
+        "/v1/transactions/simulate": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -332,7 +337,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "transaction"
+                    "transactions"
                 ],
                 "summary": "Симуляция транзакции для расчета параметров",
                 "parameters": [
@@ -352,7 +357,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.apiResponse"
+                                    "$ref": "#/definitions/v1.apiResponse"
                                 },
                                 {
                                     "type": "object",
@@ -370,17 +375,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "account.BalanceInput": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "chainId": {
-                    "type": "string"
-                }
-            }
-        },
         "account.BalanceResponse": {
             "type": "object",
             "properties": {
@@ -496,18 +490,6 @@ const docTemplate = `{
                 "symbol": {
                     "type": "string"
                 }
-            }
-        },
-        "http.apiResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "isSuccess": {
-                    "type": "boolean"
-                },
-                "result": {}
             }
         },
         "transaction.SendInput": {
@@ -628,6 +610,18 @@ const docTemplate = `{
                 "lowGasPrice": {
                     "type": "string"
                 }
+            }
+        },
+        "v1.apiResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "isSuccess": {
+                    "type": "boolean"
+                },
+                "result": {}
             }
         }
     }
