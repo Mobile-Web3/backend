@@ -238,6 +238,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/chains/{id}/validators": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chains"
+                ],
+                "summary": "Получение данных о валидаторах",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "chainId",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "кол-во валидаторов для запроса",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "кол-во валидаторов для пропуска",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/v1.apiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/chain.PagedValidatorsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/transactions/send": {
             "post": {
                 "consumes": [
@@ -448,6 +503,23 @@ const docTemplate = `{
                 }
             }
         },
+        "chain.PagedValidatorsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chain.Validator"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                }
+            }
+        },
         "chain.ShortResponse": {
             "type": "object",
             "properties": {
@@ -488,6 +560,32 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "symbol": {
+                    "type": "string"
+                }
+            }
+        },
+        "chain.Validator": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "commission": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "identity": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "type": "string"
+                },
+                "website": {
                     "type": "string"
                 }
             }

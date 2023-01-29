@@ -47,6 +47,17 @@ definitions:
       key:
         type: string
     type: object
+  chain.PagedValidatorsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/chain.Validator'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
   chain.ShortResponse:
     properties:
       base:
@@ -74,6 +85,23 @@ definitions:
       slip44:
         type: integer
       symbol:
+        type: string
+    type: object
+  chain.Validator:
+    properties:
+      address:
+        type: string
+      commission:
+        type: string
+      description:
+        type: string
+      identity:
+        type: string
+      name:
+        type: string
+      tokens:
+        type: string
+      website:
         type: string
     type: object
   transaction.SendInput:
@@ -295,6 +323,39 @@ paths:
                   type: array
               type: object
       summary: Получение данных о сетях
+      tags:
+      - chains
+  /v1/chains/{id}/validators:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: chainId
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: кол-во валидаторов для запроса
+        in: query
+        name: limit
+        type: integer
+      - description: кол-во валидаторов для пропуска
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/v1.apiResponse'
+            - properties:
+                result:
+                  $ref: '#/definitions/chain.PagedValidatorsResponse'
+              type: object
+      summary: Получение данных о валидаторах
       tags:
       - chains
   /v1/transactions/send:

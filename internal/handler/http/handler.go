@@ -16,13 +16,14 @@ import (
 type Dependencies struct {
 	Logger             log.Logger
 	Repository         chain.Repository
+	ChainService       *chain.Service
 	AccountService     *account.Service
 	TransactionService *transaction.Service
 }
 
 func NewHandler(dependencies *Dependencies) http.Handler {
 	accountsController := v1.NewAccountsController(dependencies.Logger, dependencies.AccountService)
-	chainsController := v1.NewChainsController(dependencies.Logger, dependencies.Repository)
+	chainsController := v1.NewChainsController(dependencies.Logger, dependencies.Repository, dependencies.ChainService)
 	transactionsController := v1.NewTransactionsController(dependencies.Logger, dependencies.TransactionService)
 
 	gin.SetMode("release")
@@ -46,6 +47,7 @@ func NewHandler(dependencies *Dependencies) http.Handler {
 		chains := api.Group("chains")
 		{
 			chains.GET("", chainsController.GetChains())
+			chains.GET(":id/validators", chainsController.GetPagedValidators)
 		}
 
 		transactions := api.Group("transactions")

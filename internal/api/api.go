@@ -42,14 +42,6 @@ func Run() {
 		return
 	}
 
-	chainRepository := memory.NewChainRepository()
-	chainRegistryClient := github.NewChainRegistryClient(logger)
-	chainService := chain.NewService(chainRegistryClient, chainRepository)
-	if err = chainService.UpdateChainInfo(context.Background()); err != nil {
-		logger.Error(err)
-		return
-	}
-
 	firebaseConfigPath := os.Getenv("FIREBASE_KEY_PATH")
 	if firebaseConfigPath == "" {
 		logger.Error(errFirebaseEmptyConfig)
@@ -62,8 +54,16 @@ func Run() {
 		return
 	}
 
+	chainRepository := memory.NewChainRepository()
+	chainRegistryClient := github.NewChainRegistryClient(logger)
 	cosmosClient, err := cosmos.NewClient("direct", logger, firebaseCloudMessaging.SendTxResult, chainRepository.GetRPCEndpoints)
 	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	chainService := chain.NewService(chainRegistryClient, chainRepository, cosmosClient)
+	if err = chainService.UpdateChainInfo(context.Background()); err != nil {
 		logger.Error(err)
 		return
 	}
@@ -84,6 +84,7 @@ func Run() {
 	handler := httphandler.NewHandler(&httphandler.Dependencies{
 		Logger:             logger,
 		Repository:         chainRepository,
+		ChainService:       chainService,
 		AccountService:     accounts,
 		TransactionService: transactions,
 	})
