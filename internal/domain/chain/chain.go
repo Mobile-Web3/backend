@@ -194,7 +194,8 @@ func GetGasPrices(base string, feeTokens []FeeToken) (lowGasPrice float64, avera
 }
 
 func ValidateRPCUrls(rpc []Rpc) ([]Rpc, error) {
-	for index, endpoint := range rpc {
+	var result []Rpc
+	for _, endpoint := range rpc {
 		u, err := url.Parse(endpoint.Address)
 		if err != nil {
 			return nil, err
@@ -208,14 +209,17 @@ func ValidateRPCUrls(rpc []Rpc) ([]Rpc, error) {
 			case "http":
 				port = "80"
 			default:
-				return nil, fmt.Errorf("invalid or unsupported url scheme: %v", u.Scheme)
+				continue
 			}
 		} else {
 			port = u.Port()
 		}
 
-		rpc[index].Address = fmt.Sprintf("%s://%s:%s%s", u.Scheme, u.Hostname(), port, u.Path)
+		result = append(result, Rpc{
+			Provider: endpoint.Provider,
+			Address:  fmt.Sprintf("%s://%s:%s%s", u.Scheme, u.Hostname(), port, u.Path),
+		})
 	}
 
-	return rpc, nil
+	return result, nil
 }
