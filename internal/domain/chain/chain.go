@@ -124,10 +124,6 @@ func FromBaseToDisplay(amount string, exponent int) string {
 }
 
 func FromDisplayToBase(amount string, denom string, exponent int) (string, error) {
-	if amount == "0" {
-		return "", ErrInvalidAmount
-	}
-
 	var sb strings.Builder
 	if !strings.Contains(amount, ".") {
 		sb.WriteString(amount)
@@ -168,6 +164,9 @@ func FromDisplayToBase(amount string, denom string, exponent int) (string, error
 			continue
 		}
 		sb.WriteRune(rune(amountValues[1][i]))
+	}
+	if sb.Len() == 0 {
+		sb.WriteString("0")
 	}
 	sb.WriteString(denom)
 	return sb.String(), nil

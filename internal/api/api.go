@@ -54,7 +54,7 @@ func Run() {
 		return
 	}
 
-	chainRepository := memory.NewChainRepository()
+	chainRepository := memory.NewChainLavaRepository(memory.NewChainRepository())
 	chainRegistryClient := github.NewChainRegistryClient(logger)
 	cosmosClient, err := cosmos.NewClient("direct", logger, firebaseCloudMessaging.SendTxResult, chainRepository.GetRPCEndpoints)
 	if err != nil {
