@@ -26,21 +26,18 @@ func (c *Client) getAccount(ctx context.Context, address string, chainID string)
 
 	res, err := queryClient.Account(ctx, &authtypes.QueryAccountRequest{Address: address}, grpc.Header(&header))
 	if err != nil {
-		c.logger.Error(err)
 		return nil, err
 	}
 
 	blockHeight := header.Get(grpctypes.GRPCBlockHeightHeader)
 	if l := len(blockHeight); l != 1 {
 		err = fmt.Errorf("error with parsing grpc header; unexpected '%s' header length; got %d, expected: %d", grpctypes.GRPCBlockHeightHeader, l, 1)
-		c.logger.Error(err)
 		return nil, err
 	}
 
 	var acc authtypes.AccountI
 	if err = c.interfaceRegistry.UnpackAny(res.Account, &acc); err != nil {
 		err = fmt.Errorf("unpacking grpc response with interface registry; %s", err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 

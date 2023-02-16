@@ -2,36 +2,41 @@ package connection
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
 	"time"
 
-	"github.com/Mobile-Web3/backend/pkg/log"
+	sdk "github.com/cosmos/cosmos-sdk/client"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tendermint "github.com/tendermint/tendermint/rpc/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	"github.com/tendermint/tendermint/types"
 )
+
+var ErrNoAvailableRPC = errors.New("no available rpc")
 
 type HttpABCIClient interface {
 	tendermint.ABCIClient
 }
 
+type GetRpcHandler func(ctx context.Context, chainID string) ([]string, error)
+
 type httpABCIClient struct {
 	chainID     string
-	logger      log.Logger
 	isInit      bool
 	endpoint    string
 	mutex       sync.RWMutex
 	queryClient tendermint.ABCIClient
-	getRpc      GetRPCEndpointsHandler
+	getRpc      GetRpcHandler
 }
 
-func NewHttpABCIClient(chainID string, logger log.Logger, getRpcHandler GetRPCEndpointsHandler) HttpABCIClient {
+func NewHttpABCIClient(chainID string, getRpcHandler GetRpcHandler) HttpABCIClient {
 	return &httpABCIClient{
 		chainID: chainID,
-		logger:  logger,
 		getRpc:  getRpcHandler,
 	}
 }
@@ -60,10 +65,9 @@ func (c *httpABCIClient) init(ctx context.Context) (tendermint.ABCIClient, error
 		endpoint = endpoints[rand.New(rand.NewSource(time.Now().UnixNano())).Intn(n)]
 	}
 
-	rpcClient, err := newNodeClient(endpoint)
+	rpcClient, err := sdk.NewClientFromNode(endpoint)
 	if err != nil {
 		err = fmt.Errorf("creating node client with endpoint: %s; %s", endpoint, err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -162,5 +166,69 @@ func (c *httpABCIClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*cty
 		c.invalidate()
 		return nil, err
 	}
+	return result, nil
+}
+
+func newRpcClient(endpoint string, timeout time.Duration) (*http.HTTP, error) {
+	httpClient, err := client.DefaultHTTPClient(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient.Timeout = timeout
+	rpcClient, err := http.NewWithClient(endpoint, "/websocket", httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpcClient, nil
+}
+
+func checkRpcClient(ctx context.Context, endpoint string, output chan<- string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	rpcClient, err := newRpcClient(endpoint, 5*time.Second)
+	if err != nil {
+		return
+	}
+
+	result, err := rpcClient.Status(ctx)
+	if err != nil {
+		return
+	}
+
+	if result.SyncInfo.CatchingUp {
+		return
+	}
+
+	output <- endpoint
+}
+
+func getHealthEndpoints(ctx context.Context, endpoints []string) ([]string, error) {
+	wg := &sync.WaitGroup{}
+	output := make(chan string)
+	final := make(chan []string)
+
+	go func() {
+		var result []string
+		for endpoint := range output {
+			result = append(result, endpoint)
+		}
+		final <- result
+	}()
+
+	for _, endpoint := range endpoints {
+		wg.Add(1)
+		go checkRpcClient(ctx, endpoint, output, wg)
+	}
+
+	wg.Wait()
+	close(output)
+	result := <-final
+	close(final)
+
+	if len(result) == 0 {
+		return nil, ErrNoAvailableRPC
+	}
+
 	return result, nil
 }

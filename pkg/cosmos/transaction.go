@@ -54,7 +54,6 @@ func (c *Client) sign(key types.PrivKey, txf tx.Factory, txBuilder client.TxBuil
 		prevSignatures, err = txBuilder.GetTx().GetSignaturesV2()
 		if err != nil {
 			err = fmt.Errorf("get tx signatures v2; %s", err.Error())
-			c.logger.Error(err)
 			return err
 		}
 	}
@@ -68,7 +67,6 @@ func (c *Client) sign(key types.PrivKey, txf tx.Factory, txBuilder client.TxBuil
 	}
 	if err := txBuilder.SetSignatures(sigs...); err != nil {
 		err = fmt.Errorf("set tx signatures v2; %s", err.Error())
-		c.logger.Error(err)
 		return err
 	}
 
@@ -76,14 +74,12 @@ func (c *Client) sign(key types.PrivKey, txf tx.Factory, txBuilder client.TxBuil
 	bytesToSign, err := c.txConfig.SignModeHandler().GetSignBytes(signMode, signerData, txBuilder.GetTx())
 	if err != nil {
 		err = fmt.Errorf("get sign tx bytes; %s", err.Error())
-		c.logger.Error(err)
 		return err
 	}
 
 	sigBytes, err := key.Sign(bytesToSign)
 	if err != nil {
 		err = fmt.Errorf("get tx signatures v2; %s", err.Error())
-		c.logger.Error(err)
 		return err
 	}
 
@@ -101,7 +97,6 @@ func (c *Client) sign(key types.PrivKey, txf tx.Factory, txBuilder client.TxBuil
 	if overwriteSig {
 		if err = txBuilder.SetSignatures(sig); err != nil {
 			err = fmt.Errorf("set tx signatures; %s", err.Error())
-			c.logger.Error(err)
 			return err
 		}
 		return nil
@@ -109,7 +104,6 @@ func (c *Client) sign(key types.PrivKey, txf tx.Factory, txBuilder client.TxBuil
 	prevSignatures = append(prevSignatures, sig)
 	if err = txBuilder.SetSignatures(prevSignatures...); err != nil {
 		err = fmt.Errorf("set tx signatures; %s", err.Error())
-		c.logger.Error(err)
 		return err
 	}
 
@@ -140,7 +134,6 @@ func (c *Client) CreateSignedTransaction(ctx context.Context, input SendTransact
 
 	adjusted, err := strconv.ParseUint(input.GasAdjusted, 0, 64)
 	if err != nil {
-		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -150,7 +143,6 @@ func (c *Client) CreateSignedTransaction(ctx context.Context, input SendTransact
 	builder, err := txFactory.BuildUnsignedTx(input.Message)
 	if err != nil {
 		err = fmt.Errorf("build unsigned tx; %s", err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -163,7 +155,6 @@ func (c *Client) CreateSignedTransaction(ctx context.Context, input SendTransact
 	txBytes, err := c.txConfig.TxEncoder()(builder.GetTx())
 	if err != nil {
 		err = fmt.Errorf("get signed tx from builder; %s", err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -192,7 +183,6 @@ func (c *Client) CreateSimulateTransaction(ctx context.Context, input SimulateTr
 	builder, err := factory.BuildUnsignedTx(input.Message)
 	if err != nil {
 		err = fmt.Errorf("build unsigned tx; %s", err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -205,14 +195,12 @@ func (c *Client) CreateSimulateTransaction(ctx context.Context, input SimulateTr
 	}
 	if err = builder.SetSignatures(sig); err != nil {
 		err = fmt.Errorf("set tx signatures; %s", err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 
 	protoProvider, ok := builder.(protoTxProvider)
 	if !ok {
 		err = fmt.Errorf("cannot simulate amino tx")
-		c.logger.Error(err)
 		return nil, err
 	}
 
@@ -220,7 +208,6 @@ func (c *Client) CreateSimulateTransaction(ctx context.Context, input SimulateTr
 	txBytes, err := simReq.Marshal()
 	if err != nil {
 		err = fmt.Errorf("marshal simulate request; %s", err.Error())
-		c.logger.Error(err)
 		return nil, err
 	}
 

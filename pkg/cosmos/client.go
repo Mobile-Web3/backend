@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/Mobile-Web3/backend/pkg/cosmos/connection"
-	"github.com/Mobile-Web3/backend/pkg/log"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
@@ -22,8 +21,6 @@ type chain struct {
 }
 
 type Client struct {
-	logger log.Logger
-
 	interfaceRegistry types.InterfaceRegistry
 	codec             codec.Codec
 	txConfig          client.TxConfig
@@ -34,15 +31,14 @@ type Client struct {
 
 	signMode signing.SignMode
 
-	getRpcHandler  connection.GetRPCEndpointsHandler
+	getRpcHandler  connection.GetRpcHandler
 	txEventHandler connection.TxEventHandler
 }
 
 func NewClient(
 	signMode string,
-	logger log.Logger,
 	txEventHandler connection.TxEventHandler,
-	getRpcHandler connection.GetRPCEndpointsHandler) (*Client, error) {
+	getRpcHandler connection.GetRpcHandler) (*Client, error) {
 	codecData := makeCodec()
 
 	mode := signing.SignMode_SIGN_MODE_UNSPECIFIED
@@ -56,8 +52,6 @@ func NewClient(
 	}
 
 	return &Client{
-		logger: logger,
-
 		interfaceRegistry: codecData.InterfaceRegistry,
 		codec:             codecData.Marshaler,
 		txConfig:          codecData.TxConfig,
@@ -86,9 +80,9 @@ func (c *Client) getChainData(chainID string) chain {
 	defer c.mutex.Unlock()
 
 	chainData.ID = chainID
-	chainData.HttpClient = connection.NewHttpABCIClient(chainID, c.logger, c.getRpcHandler)
-	chainData.GrpcClient = connection.NewGrpcConnectionFromRPC(c.logger, chainData.HttpClient, c.interfaceRegistry, c.codec)
-	chainData.WebsocketClient = connection.NewTendermintWebsocketClient(chainID, c.logger, c.getRpcHandler, c.txEventHandler)
+	chainData.HttpClient = connection.NewHttpABCIClient(chainID, c.getRpcHandler)
+	chainData.GrpcClient = connection.NewGrpcConnectionFromRPC(chainData.HttpClient, c.interfaceRegistry, c.codec)
+	chainData.WebsocketClient = connection.NewTendermintWebsocketClient(chainID, c.getRpcHandler, c.txEventHandler)
 	c.chains[chainID] = chainData
 	return chainData
 }

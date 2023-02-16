@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Mobile-Web3/backend/pkg/log"
+	sdk "github.com/cosmos/cosmos-sdk/client"
 	"github.com/google/uuid"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -16,18 +16,27 @@ type WebsocketClient interface {
 	UnsubscribeFromTx(subscriber string)
 }
 
+type TxEvent struct {
+	TxHash    string
+	Code      uint32
+	Log       string
+	Info      string
+	GasUsed   int64
+	GasWanted int64
+}
+
+type TxEventHandler func(ctx context.Context, event TxEvent, params map[string]interface{}) error
+
 type tendermintWebsocketClient struct {
 	chainID       string
-	logger        log.Logger
-	getRpc        GetRPCEndpointsHandler
+	getRpc        GetRpcHandler
 	handleTxEvent TxEventHandler
 	cancelChannel chan string
 }
 
-func NewTendermintWebsocketClient(chainID string, logger log.Logger, getRpcHandler GetRPCEndpointsHandler, txEventHandler TxEventHandler) WebsocketClient {
+func NewTendermintWebsocketClient(chainID string, getRpcHandler GetRpcHandler, txEventHandler TxEventHandler) WebsocketClient {
 	return &tendermintWebsocketClient{
 		chainID:       chainID,
-		logger:        logger,
 		getRpc:        getRpcHandler,
 		handleTxEvent: txEventHandler,
 		cancelChannel: make(chan string),
@@ -86,7 +95,6 @@ func (c *tendermintWebsocketClient) subscribeToTx(
 	eventsChannel, err := client.Subscribe(ctx, subscriber, query)
 	if err != nil {
 		err = fmt.Errorf("subscribing for tx events to %s; %s", endpoint, err.Error())
-		c.logger.Error(err)
 		return "", err
 	}
 
@@ -102,7 +110,7 @@ func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address s
 
 	var client *http.HTTP
 	for _, endpoint := range endpoints {
-		client, err = newNodeClient(endpoint)
+		client, err = sdk.NewClientFromNode(endpoint)
 		if err != nil {
 			continue
 		}
@@ -115,7 +123,6 @@ func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address s
 	}
 
 	err = fmt.Errorf("tendermint websocket connecting; %s", err.Error())
-	c.logger.Error(err)
 	return "", err
 }
 
