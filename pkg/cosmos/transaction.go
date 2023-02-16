@@ -161,10 +161,6 @@ func (c *Client) CreateSignedTransaction(ctx context.Context, input SendTransact
 	return txBytes, nil
 }
 
-type protoTxProvider interface {
-	GetProtoTx() *txtypes.Tx
-}
-
 type SimulateTransactionData struct {
 	ChainID     string
 	Memo        string
@@ -198,14 +194,14 @@ func (c *Client) CreateSimulateTransaction(ctx context.Context, input SimulateTr
 		return nil, err
 	}
 
-	protoProvider, ok := builder.(protoTxProvider)
-	if !ok {
-		err = fmt.Errorf("cannot simulate amino tx")
+	txBytes, err := c.txConfig.TxEncoder()(builder.GetTx())
+	if err != nil {
+		err = fmt.Errorf("get tx bytes from builder while simulating; %s", err.Error())
 		return nil, err
 	}
 
-	simReq := txtypes.SimulateRequest{Tx: protoProvider.GetProtoTx()}
-	txBytes, err := simReq.Marshal()
+	simReq := txtypes.SimulateRequest{TxBytes: txBytes}
+	txBytes, err = simReq.Marshal()
 	if err != nil {
 		err = fmt.Errorf("marshal simulate request; %s", err.Error())
 		return nil, err

@@ -153,6 +153,7 @@ func (s *Service) SendTransaction(ctx context.Context, input SendInput) (SendRes
 	}
 
 	if response.Code != 0 {
+		err = fmt.Errorf("tx failed with code: %d; %s", response.Code, response.Log)
 		s.logger.Error(err)
 		return SendResponse{}, err
 	}
