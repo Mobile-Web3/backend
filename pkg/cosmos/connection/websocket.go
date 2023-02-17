@@ -4,37 +4,41 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Mobile-Web3/backend/pkg/log"
+	sdk "github.com/cosmos/cosmos-sdk/client"
 	"github.com/google/uuid"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 )
 
-type WebsocketClient interface {
-	SubscribeToTx(ctx context.Context, address string, params map[string]interface{}) (string, error)
-	UnsubscribeFromTx(subscriber string)
+type TxEvent struct {
+	TxHash    string
+	Code      uint32
+	Log       string
+	Info      string
+	GasUsed   int64
+	GasWanted int64
 }
 
-type tendermintWebsocketClient struct {
+type TxEventHandler func(ctx context.Context, event TxEvent, params map[string]interface{}) error
+
+type WebsocketClient struct {
 	chainID       string
-	logger        log.Logger
-	getRpc        GetRPCEndpointsHandler
+	getRpc        GetRpcHandler
 	handleTxEvent TxEventHandler
 	cancelChannel chan string
 }
 
-func NewTendermintWebsocketClient(chainID string, logger log.Logger, getRpcHandler GetRPCEndpointsHandler, txEventHandler TxEventHandler) WebsocketClient {
-	return &tendermintWebsocketClient{
+func NewWebsocketClient(chainID string, getRpcHandler GetRpcHandler, txEventHandler TxEventHandler) *WebsocketClient {
+	return &WebsocketClient{
 		chainID:       chainID,
-		logger:        logger,
 		getRpc:        getRpcHandler,
 		handleTxEvent: txEventHandler,
 		cancelChannel: make(chan string),
 	}
 }
 
-func (c *tendermintWebsocketClient) listenTxEvents(
+func (c *WebsocketClient) listenTxEvents(
 	subscriber string,
 	query string,
 	params map[string]interface{},
@@ -75,7 +79,7 @@ func (c *tendermintWebsocketClient) listenTxEvents(
 	}
 }
 
-func (c *tendermintWebsocketClient) subscribeToTx(
+func (c *WebsocketClient) subscribeToTx(
 	ctx context.Context,
 	address string,
 	endpoint string,
@@ -86,7 +90,6 @@ func (c *tendermintWebsocketClient) subscribeToTx(
 	eventsChannel, err := client.Subscribe(ctx, subscriber, query)
 	if err != nil {
 		err = fmt.Errorf("subscribing for tx events to %s; %s", endpoint, err.Error())
-		c.logger.Error(err)
 		return "", err
 	}
 
@@ -94,7 +97,7 @@ func (c *tendermintWebsocketClient) subscribeToTx(
 	return subscriber, nil
 }
 
-func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address string, params map[string]interface{}) (string, error) {
+func (c *WebsocketClient) SubscribeToTx(ctx context.Context, address string, params map[string]interface{}) (string, error) {
 	endpoints, err := c.getRpc(ctx, c.chainID)
 	if err != nil {
 		return "", err
@@ -102,7 +105,7 @@ func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address s
 
 	var client *http.HTTP
 	for _, endpoint := range endpoints {
-		client, err = newNodeClient(endpoint)
+		client, err = sdk.NewClientFromNode(endpoint)
 		if err != nil {
 			continue
 		}
@@ -115,10 +118,9 @@ func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address s
 	}
 
 	err = fmt.Errorf("tendermint websocket connecting; %s", err.Error())
-	c.logger.Error(err)
 	return "", err
 }
 
-func (c *tendermintWebsocketClient) UnsubscribeFromTx(subscriber string) {
+func (c *WebsocketClient) UnsubscribeFromTx(subscriber string) {
 	c.cancelChannel <- subscriber
 }
