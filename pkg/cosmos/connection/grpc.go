@@ -12,7 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
-	"github.com/gogo/protobuf/grpc"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tendermint "github.com/tendermint/tendermint/rpc/client"
 	googlerpc "google.golang.org/grpc"
@@ -29,25 +28,21 @@ var (
 	ErrStreamingNotSupported = errors.New("streaming rpc not supported")
 )
 
-type GrpcConnection interface {
-	grpc.ClientConn
-}
-
-type grpcConnection struct {
+type GrpcClient struct {
 	rpcClient         tendermint.ABCIClient
 	interfaceRegistry types.InterfaceRegistry
 	codec             codec.Codec
 }
 
-func NewGrpcConnectionFromRPC(rpcClient tendermint.ABCIClient, interfaceRegistry types.InterfaceRegistry, codec codec.Codec) GrpcConnection {
-	return &grpcConnection{
+func NewGrpcClient(rpcClient tendermint.ABCIClient, interfaceRegistry types.InterfaceRegistry, codec codec.Codec) *GrpcClient {
+	return &GrpcClient{
 		rpcClient:         rpcClient,
 		interfaceRegistry: interfaceRegistry,
 		codec:             codec,
 	}
 }
 
-func (c *grpcConnection) NewStream(context.Context, *googlerpc.StreamDesc, string, ...googlerpc.CallOption) (googlerpc.ClientStream, error) {
+func (c *GrpcClient) NewStream(context.Context, *googlerpc.StreamDesc, string, ...googlerpc.CallOption) (googlerpc.ClientStream, error) {
 	return nil, ErrStreamingNotSupported
 }
 
@@ -83,7 +78,7 @@ func isQueryStoreWithProof(path string) bool {
 	return false
 }
 
-func (c *grpcConnection) queryABCI(ctx context.Context, req abci.RequestQuery) (abci.ResponseQuery, error) {
+func (c *GrpcClient) queryABCI(ctx context.Context, req abci.RequestQuery) (abci.ResponseQuery, error) {
 	opts := tendermint.ABCIQueryOptions{
 		Height: req.Height,
 		Prove:  req.Prove,
@@ -91,7 +86,6 @@ func (c *grpcConnection) queryABCI(ctx context.Context, req abci.RequestQuery) (
 
 	result, err := c.rpcClient.ABCIQueryWithOptions(ctx, req.Path, req.Data, opts)
 	if err != nil {
-		err = fmt.Errorf("abci quering; %s", err.Error())
 		return abci.ResponseQuery{}, err
 	}
 
@@ -123,7 +117,7 @@ func getProveFromMetadata(md metadata.MD) (bool, error) {
 	return false, nil
 }
 
-func (c *grpcConnection) runGRPCQuery(ctx context.Context, method string, req interface{}, md metadata.MD) (abci.ResponseQuery, metadata.MD, error) {
+func (c *GrpcClient) runGRPCQuery(ctx context.Context, method string, req interface{}, md metadata.MD) (abci.ResponseQuery, metadata.MD, error) {
 	reqBz, err := protoCodec.Marshal(req)
 	if err != nil {
 		err = fmt.Errorf("run grpc query; %s", err.Error())
@@ -175,7 +169,7 @@ func (c *grpcConnection) runGRPCQuery(ctx context.Context, method string, req in
 	return abciRes, md, nil
 }
 
-func (c *grpcConnection) Invoke(ctx context.Context, method string, req, reply interface{}, opts ...googlerpc.CallOption) (err error) {
+func (c *GrpcClient) Invoke(ctx context.Context, method string, req, reply interface{}, opts ...googlerpc.CallOption) (err error) {
 	inMd, _ := metadata.FromOutgoingContext(ctx)
 	abciRes, outMd, err := c.runGRPCQuery(ctx, method, req, inMd)
 	if err != nil {

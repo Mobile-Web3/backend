@@ -11,11 +11,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type WebsocketClient interface {
-	SubscribeToTx(ctx context.Context, address string, params map[string]interface{}) (string, error)
-	UnsubscribeFromTx(subscriber string)
-}
-
 type TxEvent struct {
 	TxHash    string
 	Code      uint32
@@ -27,15 +22,15 @@ type TxEvent struct {
 
 type TxEventHandler func(ctx context.Context, event TxEvent, params map[string]interface{}) error
 
-type tendermintWebsocketClient struct {
+type WebsocketClient struct {
 	chainID       string
 	getRpc        GetRpcHandler
 	handleTxEvent TxEventHandler
 	cancelChannel chan string
 }
 
-func NewTendermintWebsocketClient(chainID string, getRpcHandler GetRpcHandler, txEventHandler TxEventHandler) WebsocketClient {
-	return &tendermintWebsocketClient{
+func NewWebsocketClient(chainID string, getRpcHandler GetRpcHandler, txEventHandler TxEventHandler) *WebsocketClient {
+	return &WebsocketClient{
 		chainID:       chainID,
 		getRpc:        getRpcHandler,
 		handleTxEvent: txEventHandler,
@@ -43,7 +38,7 @@ func NewTendermintWebsocketClient(chainID string, getRpcHandler GetRpcHandler, t
 	}
 }
 
-func (c *tendermintWebsocketClient) listenTxEvents(
+func (c *WebsocketClient) listenTxEvents(
 	subscriber string,
 	query string,
 	params map[string]interface{},
@@ -84,7 +79,7 @@ func (c *tendermintWebsocketClient) listenTxEvents(
 	}
 }
 
-func (c *tendermintWebsocketClient) subscribeToTx(
+func (c *WebsocketClient) subscribeToTx(
 	ctx context.Context,
 	address string,
 	endpoint string,
@@ -102,7 +97,7 @@ func (c *tendermintWebsocketClient) subscribeToTx(
 	return subscriber, nil
 }
 
-func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address string, params map[string]interface{}) (string, error) {
+func (c *WebsocketClient) SubscribeToTx(ctx context.Context, address string, params map[string]interface{}) (string, error) {
 	endpoints, err := c.getRpc(ctx, c.chainID)
 	if err != nil {
 		return "", err
@@ -126,6 +121,6 @@ func (c *tendermintWebsocketClient) SubscribeToTx(ctx context.Context, address s
 	return "", err
 }
 
-func (c *tendermintWebsocketClient) UnsubscribeFromTx(subscriber string) {
+func (c *WebsocketClient) UnsubscribeFromTx(subscriber string) {
 	c.cancelChannel <- subscriber
 }

@@ -15,9 +15,9 @@ var ErrSignModeUnknown = errors.New("unknown sign mode")
 
 type chain struct {
 	ID              string
-	HttpClient      connection.HttpABCIClient
-	GrpcClient      connection.GrpcConnection
-	WebsocketClient connection.WebsocketClient
+	HttpClient      *connection.HttpClient
+	GrpcClient      *connection.GrpcClient
+	WebsocketClient *connection.WebsocketClient
 }
 
 type Client struct {
@@ -67,37 +67,40 @@ func NewClient(
 	}, nil
 }
 
-func (c *Client) getChainData(chainID string) chain {
-	c.mutex.RLock()
-	chainData, ok := c.chains[chainID]
-	if ok {
-		c.mutex.RUnlock()
-		return chainData
-	}
-
-	c.mutex.RUnlock()
+func (c *Client) initChainData(chainID string) chain {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-
+	chainData := chain{}
 	chainData.ID = chainID
-	chainData.HttpClient = connection.NewHttpABCIClient(chainID, c.getRpcHandler)
-	chainData.GrpcClient = connection.NewGrpcConnectionFromRPC(chainData.HttpClient, c.interfaceRegistry, c.codec)
-	chainData.WebsocketClient = connection.NewTendermintWebsocketClient(chainID, c.getRpcHandler, c.txEventHandler)
+	chainData.HttpClient = connection.NewHttpClient(chainID, c.getRpcHandler)
+	chainData.GrpcClient = connection.NewGrpcClient(chainData.HttpClient, c.interfaceRegistry, c.codec)
+	chainData.WebsocketClient = connection.NewWebsocketClient(chainID, c.getRpcHandler, c.txEventHandler)
 	c.chains[chainID] = chainData
 	return chainData
 }
 
-func (c *Client) GetChainHttpClient(chainID string) connection.HttpABCIClient {
+func (c *Client) getChainData(chainID string) chain {
+	c.mutex.RLock()
+	chainData, ok := c.chains[chainID]
+	if !ok {
+		c.mutex.RUnlock()
+		return c.initChainData(chainID)
+	}
+	c.mutex.RUnlock()
+	return chainData
+}
+
+func (c *Client) GetChainHttpClient(chainID string) *connection.HttpClient {
 	chainData := c.getChainData(chainID)
 	return chainData.HttpClient
 }
 
-func (c *Client) GetChainGrpcClient(chainID string) connection.GrpcConnection {
+func (c *Client) GetChainGrpcClient(chainID string) *connection.GrpcClient {
 	chainData := c.getChainData(chainID)
 	return chainData.GrpcClient
 }
 
-func (c *Client) GetChainWebsocketClient(chainID string) connection.WebsocketClient {
+func (c *Client) GetChainWebsocketClient(chainID string) *connection.WebsocketClient {
 	chainData := c.getChainData(chainID)
 	return chainData.WebsocketClient
 }
